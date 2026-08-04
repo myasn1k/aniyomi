@@ -13,6 +13,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -51,6 +52,7 @@ fun BrowseAnimeSourceContent(
     onLocalAnimeSourceHelpClick: () -> Unit,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
+    initialItemFocusRequester: FocusRequester? = null,
 ) {
     val context = LocalContext.current
 
@@ -126,6 +128,7 @@ fun BrowseAnimeSourceContent(
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.List -> {
@@ -136,6 +139,7 @@ fun BrowseAnimeSourceContent(
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
@@ -145,6 +149,7 @@ fun BrowseAnimeSourceContent(
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
     }

@@ -43,6 +43,7 @@ import eu.kanade.presentation.entries.components.ItemCover
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.BadgeGroup
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 import tachiyomi.presentation.core.util.selectedBackground
 import tachiyomi.domain.entries.EntryCover as EntryCoverModel
 
@@ -80,11 +81,13 @@ fun EntryCompactGridItem(
     coverAlpha: Float = 1f,
     coverBadgeStart: @Composable (RowScope.() -> Unit)? = null,
     coverBadgeEnd: @Composable (RowScope.() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     GridItemSelectable(
         isSelected = isSelected,
         onClick = onClick,
         onLongClick = onLongClick,
+        modifier = modifier,
     ) {
         EntryGridCover(
             cover = {
@@ -186,11 +189,13 @@ fun EntryComfortableGridItem(
     coverBadgeStart: (@Composable RowScope.() -> Unit)? = null,
     coverBadgeEnd: (@Composable RowScope.() -> Unit)? = null,
     onClickContinueViewing: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     GridItemSelectable(
         isSelected = isSelected,
         onClick = onClick,
         onLongClick = onLongClick,
+        modifier = modifier,
     ) {
         Column {
             EntryGridCover(
@@ -300,6 +305,7 @@ private fun GridItemSelectable(
     Box(
         modifier = modifier
             .clip(MaterialTheme.shapes.small)
+            .focusHighlight()
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
@@ -346,6 +352,7 @@ fun EntryListItem(
     Row(
         modifier = modifier
             .selectedBackground(isSelected)
+            .focusHighlight()
             .height(
                 when (entries) {
                     0 -> 76.dp
