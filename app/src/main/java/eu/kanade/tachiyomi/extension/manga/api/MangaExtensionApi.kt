@@ -12,8 +12,11 @@ import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import logcat.LogPriority
 import mihon.domain.extensionrepo.manga.interactor.GetMangaExtensionRepo
 import mihon.domain.extensionrepo.manga.interactor.UpdateMangaExtensionRepo
@@ -23,7 +26,9 @@ import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.util.lang.withIOContext
 import tachiyomi.core.common.util.system.logcat
 import uy.kohesive.injekt.injectLazy
+import java.io.ByteArrayInputStream
 import java.time.Instant
+import java.util.zip.GZIPInputStream
 import kotlin.time.Duration.Companion.days
 
 internal class MangaExtensionApi {
@@ -50,6 +55,24 @@ internal class MangaExtensionApi {
 
     private suspend fun getExtensions(extRepo: ExtensionRepo): List<MangaExtension.Available> {
         val repoBaseUrl = extRepo.baseUrl
+        return getProtobufExtensions(repoBaseUrl) ?: getJsonExtensions(repoBaseUrl)
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    private suspend fun getProtobufExtensions(repoBaseUrl: String): List<MangaExtension.Available>? {
+        return try {
+            val response = networkService.client
+                .newCall(GET("$repoBaseUrl/index.pb"))
+                .awaitSuccess()
+            val compressed = response.body.bytes()
+            decodeMangaExtensionIndex(compressed, repoBaseUrl)
+        } catch (e: Throwable) {
+            logcat(LogPriority.DEBUG, e) { "No protobuf extension index at $repoBaseUrl; trying JSON" }
+            null
+        }
+    }
+
+    private suspend fun getJsonExtensions(repoBaseUrl: String): List<MangaExtension.Available> {
         return try {
             val response = networkService.client
                 .newCall(GET("$repoBaseUrl/index.min.json"))
@@ -133,13 +156,97 @@ internal class MangaExtensionApi {
     }
 
     fun getApkUrl(extension: MangaExtension.Available): String {
-        return "${extension.repoUrl}/apk/${extension.apkName}"
+        return resolveMangaExtensionApkUrl(extension)
     }
 
     private fun ExtensionJsonObject.extractLibVersion(): Double {
         return version.substringBeforeLast('.').toDouble()
     }
 }
+
+private const val CONTENT_WARNING_NSFW = 3
+
+@OptIn(ExperimentalSerializationApi::class)
+internal fun decodeMangaExtensionIndex(
+    compressed: ByteArray,
+    repoUrl: String,
+): List<MangaExtension.Available> {
+    val decoded = GZIPInputStream(ByteArrayInputStream(compressed)).use { it.readBytes() }
+    return ProtoBuf.decodeFromByteArray(ExtensionIndexProto.serializer(), decoded)
+        .extensionList
+        ?.extensions
+        ?.toProtobufExtensions(repoUrl)
+        .orEmpty()
+}
+
+internal fun resolveMangaExtensionApkUrl(extension: MangaExtension.Available): String {
+    return extension.apkName.takeIf { it.startsWith("https://") }
+        ?: "${extension.repoUrl}/apk/${extension.apkName}"
+}
+
+private fun List<ExtensionProto>.toProtobufExtensions(repoUrl: String): List<MangaExtension.Available> {
+    return filter {
+        val libVersion = it.extensionLib.toDoubleOrNull()
+        libVersion != null &&
+            libVersion >= MangaExtensionLoader.LIB_VERSION_MIN &&
+            libVersion <= MangaExtensionLoader.LIB_VERSION_MAX
+    }.map {
+        MangaExtension.Available(
+            name = it.name.substringAfter("Tachiyomi: "),
+            pkgName = it.packageName,
+            versionName = it.versionName,
+            versionCode = it.versionCode,
+            libVersion = it.extensionLib.toDouble(),
+            lang = it.packageName.substringAfter(".extension.").substringBefore('.'),
+            isNsfw = it.contentWarning == CONTENT_WARNING_NSFW,
+            sources = it.sources.map(extensionSourceProtoMapper),
+            apkName = it.resources.apkUrl,
+            iconUrl = it.resources.iconUrl,
+            repoUrl = repoUrl,
+        )
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class ExtensionIndexProto(
+    @ProtoNumber(101) val extensionList: ExtensionListProto? = null,
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class ExtensionListProto(
+    @ProtoNumber(1) val extensions: List<ExtensionProto> = emptyList(),
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class ExtensionProto(
+    @ProtoNumber(1) val name: String = "",
+    @ProtoNumber(2) val packageName: String = "",
+    @ProtoNumber(3) val resources: ExtensionResourcesProto = ExtensionResourcesProto(),
+    @ProtoNumber(4) val extensionLib: String = "",
+    @ProtoNumber(5) val versionCode: Long = 0,
+    @ProtoNumber(6) val versionName: String = "",
+    @ProtoNumber(7) val contentWarning: Int = 0,
+    @ProtoNumber(8) val sources: List<ExtensionSourceProto> = emptyList(),
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class ExtensionResourcesProto(
+    @ProtoNumber(1) val apkUrl: String = "",
+    @ProtoNumber(2) val iconUrl: String = "",
+)
+
+@OptIn(ExperimentalSerializationApi::class)
+@Serializable
+internal data class ExtensionSourceProto(
+    @ProtoNumber(1) val id: Long = 0,
+    @ProtoNumber(2) val name: String = "",
+    @ProtoNumber(3) val language: String = "",
+    @ProtoNumber(4) val homeUrl: String = "",
+)
 
 @Serializable
 private data class ExtensionJsonObject(
@@ -167,5 +274,14 @@ private val extensionSourceMapper: (ExtensionSourceJsonObject) -> MangaExtension
         lang = it.lang,
         name = it.name,
         baseUrl = it.baseUrl,
+    )
+}
+
+private val extensionSourceProtoMapper: (ExtensionSourceProto) -> MangaExtension.Available.MangaSource = {
+    MangaExtension.Available.MangaSource(
+        id = it.id,
+        lang = it.language,
+        name = it.name,
+        baseUrl = it.homeUrl,
     )
 }
