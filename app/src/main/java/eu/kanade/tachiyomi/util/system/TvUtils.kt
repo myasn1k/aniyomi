@@ -11,10 +11,7 @@ fun isTvBox(context: Context): Boolean {
     val pm: PackageManager = context.packageManager
 
     // TV for sure
-    if (
-        context.getSystemService(UiModeManager::class.java)
-            .getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION
-    ) {
+    if (context.isTelevision()) {
         return true
     }
 
@@ -42,4 +39,22 @@ fun isTvBox(context: Context): Boolean {
 
     // Default: No TV - use SAF
     return false
+}
+
+/**
+ * Returns whether this is a real Android TV device.
+ *
+ * Keep this stricter than [isTvBox]: missing storage apps are useful for choosing a storage
+ * workflow, but are not enough evidence to replace touch interactions with D-pad interactions.
+ */
+fun Context.isTelevision(): Boolean {
+    val modeType = getSystemService(UiModeManager::class.java)?.currentModeType
+    return isTelevision(
+        uiModeType = modeType,
+        hasLeanbackFeature = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+    )
+}
+
+internal fun isTelevision(uiModeType: Int?, hasLeanbackFeature: Boolean): Boolean {
+    return uiModeType == Configuration.UI_MODE_TYPE_TELEVISION || hasLeanbackFeature
 }
