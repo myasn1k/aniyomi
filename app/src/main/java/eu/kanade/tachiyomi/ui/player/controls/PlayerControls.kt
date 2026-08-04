@@ -137,7 +137,7 @@ fun PlayerControls(
         isSeeking,
         resetControls,
     ) {
-        if (controlsShown && !paused && !isSeeking) {
+        if (shouldAutoHidePlayerControls(controlsShown, paused, isSeeking)) {
             delay(playerTimeToDisappear.toLong())
             viewModel.hideControls()
         }
@@ -669,6 +669,12 @@ fun PlayerControls(
         )
     }
 }
+
+internal fun shouldAutoHidePlayerControls(
+    controlsShown: Boolean,
+    paused: Boolean,
+    isSeeking: Boolean,
+): Boolean = controlsShown && !paused && !isSeeking
 
 fun <T> playerControlsExitAnimationSpec(): FiniteAnimationSpec<T> = tween(
     durationMillis = 300,

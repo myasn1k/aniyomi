@@ -22,10 +22,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.font.FontWeight
@@ -63,6 +66,12 @@ fun MiddlePlayerControls(
     exit: ExitTransition,
     modifier: Modifier = Modifier,
 ) {
+    val playPauseFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(controlsShown, areControlsLocked, isLoading, isLoadingEpisode) {
+        if (controlsShown && !areControlsLocked && !isLoading && !isLoadingEpisode) {
+            playPauseFocusRequester.requestFocus()
+        }
+    }
     Row(
         modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -113,6 +122,7 @@ fun MiddlePlayerControls(
                         painter = rememberAnimatedVectorPainter(icon, !paused),
                         modifier = Modifier
                             .size(96.dp)
+                            .focusRequester(playPauseFocusRequester)
                             .clip(CircleShape)
                             .clickable(
                                 interaction,
