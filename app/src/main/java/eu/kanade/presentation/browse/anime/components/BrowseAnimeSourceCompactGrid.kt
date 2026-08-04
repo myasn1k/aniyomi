@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -27,6 +30,7 @@ fun BrowseAnimeSourceCompactGrid(
     contentPadding: PaddingValues,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
+    initialItemFocusRequester: FocusRequester?,
 ) {
     LazyVerticalGrid(
         columns = columns,
@@ -44,6 +48,11 @@ fun BrowseAnimeSourceCompactGrid(
             val anime by animeList[index]?.collectAsState() ?: return@items
             BrowseAnimeSourceCompactGridItem(
                 anime = anime,
+                modifier = if (index == 0 && initialItemFocusRequester != null) {
+                    Modifier.focusRequester(initialItemFocusRequester)
+                } else {
+                    Modifier
+                },
                 onClick = { onAnimeClick(anime) },
                 onLongClick = { onAnimeLongClick(anime) },
             )
@@ -60,10 +69,12 @@ fun BrowseAnimeSourceCompactGrid(
 @Composable
 private fun BrowseAnimeSourceCompactGridItem(
     anime: Anime,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = onClick,
 ) {
     EntryCompactGridItem(
+        modifier = modifier,
         title = anime.title,
         coverData = AnimeCover(
             animeId = anime.id,

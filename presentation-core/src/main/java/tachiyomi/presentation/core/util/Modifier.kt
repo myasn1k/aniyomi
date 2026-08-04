@@ -22,7 +22,25 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
+
+/** Draws a persistent high-contrast highlight for keyboard and TV remote focus. */
+fun Modifier.focusHighlight(): Modifier = composed {
+    var isFocused by remember { mutableStateOf(false) }
+    val color = MaterialTheme.colorScheme.primary
+    Modifier
+        .onFocusChanged { isFocused = it.isFocused }
+        .drawBehind {
+            if (isFocused) {
+                drawRect(color.copy(alpha = 0.18f))
+                drawRect(
+                    color = color,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()),
+                )
+            }
+        }
+}
 
 fun Modifier.selectedBackground(isSelected: Boolean): Modifier = if (isSelected) {
     composed {
@@ -41,12 +59,14 @@ fun Modifier.secondaryItemAlpha(): Modifier = this.alpha(SECONDARY_ALPHA)
 fun Modifier.clickableNoIndication(
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
-) = this.combinedClickable(
-    interactionSource = null,
-    indication = null,
-    onLongClick = onLongClick,
-    onClick = onClick,
-)
+) = this
+    .focusHighlight()
+    .combinedClickable(
+        interactionSource = null,
+        indication = null,
+        onLongClick = onLongClick,
+        onClick = onClick,
+    )
 
 /**
  * For TextField, the provided [action] will be invoked when

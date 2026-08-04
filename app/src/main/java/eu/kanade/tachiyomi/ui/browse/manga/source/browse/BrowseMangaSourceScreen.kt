@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -56,6 +57,7 @@ import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.util.system.isTvBox
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -128,6 +130,7 @@ data class BrowseMangaSourceScreen(
         }
 
         var topBarHeight by remember { mutableIntStateOf(0) }
+        val isTv = isTvBox(LocalContext.current)
         Scaffold(
             topBar = {
                 Column(
@@ -150,7 +153,7 @@ data class BrowseMangaSourceScreen(
 
                     Row(
                         modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
+                            .then(if (isTv) Modifier else Modifier.horizontalScroll(rememberScrollState()))
                             .padding(horizontal = MaterialTheme.padding.small),
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                     ) {
