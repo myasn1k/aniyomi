@@ -11,6 +11,11 @@ build
 
 # Configuration files
 local.properties
+.android-sdk/
+.android-avd/
+.android-home/
+graphify-out/
+**/graphify-out/
 
 # macOS specific files
 .DS_Store
