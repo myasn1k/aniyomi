@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_foreground" />
+    <item
+        android:width="34dp"
+        android:height="22dp"
+        android:end="10dp"
+        android:bottom="10dp"
+        android:gravity="end|bottom"
+        android:drawable="@drawable/ic_tv_badge" />
+</layer-list>
