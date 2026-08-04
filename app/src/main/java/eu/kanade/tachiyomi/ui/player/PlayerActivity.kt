@@ -80,6 +80,7 @@ import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
+import eu.kanade.tachiyomi.util.system.isTelevision
 import eu.kanade.tachiyomi.util.system.powerManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
@@ -120,6 +121,7 @@ class PlayerActivity : BaseActivity() {
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     private var mediaSession: MediaSession? = null
+    private var consumedTvKeyDown: Int? = null
     private val gesturePreferences: GesturePreferences by lazy { viewModel.gesturePreferences }
     private val playerPreferences: PlayerPreferences by lazy { viewModel.playerPreferences }
     private val audioPreferences: AudioPreferences = Injekt.get()
@@ -359,6 +361,10 @@ class PlayerActivity : BaseActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (isTelevision() && viewModel.controlsShown.value) {
+            viewModel.hideControls()
+            return
+        }
         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
             if (viewModel.sheetShown.value == Sheets.None &&
                 viewModel.panelShown.value == Panels.None &&
@@ -829,6 +835,10 @@ class PlayerActivity : BaseActivity() {
 
     private fun setupPlayerOrientation() {
         if (player.isExiting) return
+        if (isTelevision()) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            return
+        }
         requestedOrientation = when (playerPreferences.defaultPlayerOrientationType().get()) {
             PlayerOrientation.Free -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
             PlayerOrientation.Video -> if ((player.getVideoOutAspect() ?: 0.0) > 1.0) {
@@ -841,12 +851,40 @@ class PlayerActivity : BaseActivity() {
             PlayerOrientation.ReversePortrait -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
             PlayerOrientation.SensorPortrait -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
             PlayerOrientation.Landscape -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            PlayerOrientation.ReverseLandscape -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            PlayerOrientation.ReverseLandscape -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
             PlayerOrientation.SensorLandscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (isTelevision()) {
+            val action = tvRemoteAction(keyCode, viewModel.controlsShown.value)
+            if (action != null) {
+                consumedTvKeyDown = keyCode
+                when (action) {
+                    TvRemoteAction.ShowControls -> viewModel.showControls()
+                    TvRemoteAction.SeekBackward -> viewModel.handleLeftDoubleTap()
+                    TvRemoteAction.SeekForward -> viewModel.handleRightDoubleTap()
+                    TvRemoteAction.TogglePlayback -> {
+                        viewModel.pauseUnpause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.Play -> {
+                        viewModel.unpause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.Pause -> {
+                        viewModel.pause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.PreviousEpisode -> viewModel.changeEpisode(previous = true)
+                    TvRemoteAction.NextEpisode -> viewModel.changeEpisode(previous = false)
+                    TvRemoteAction.HideControls -> viewModel.hideControls()
+                    TvRemoteAction.Stop -> finishAndRemoveTask()
+                }
+                return true
+            }
+        }
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 viewModel.changeVolumeBy(1)
@@ -874,6 +912,10 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (shouldConsumeTvKeyUp(consumedTvKeyDown, keyCode)) {
+            consumedTvKeyDown = null
+            return true
+        }
         if (player.onKey(event!!)) return true
         return super.onKeyUp(keyCode, event)
     }
