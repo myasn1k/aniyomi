@@ -31,11 +31,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import eu.kanade.presentation.components.downloadFocusTarget
+import eu.kanade.presentation.components.focusDownloadOnTvRight
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
 import me.saket.swipe.SwipeableActionsBox
@@ -66,6 +70,8 @@ fun MangaChapterListItem(
     onChapterSwipe: (LibraryPreferences.ChapterSwipeAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val itemFocusRequester = remember { FocusRequester() }
+    val downloadFocusRequester = remember { FocusRequester() }
     val start = getSwipeAction(
         action = chapterSwipeStartAction,
         read = read,
@@ -93,6 +99,8 @@ fun MangaChapterListItem(
         Row(
             modifier = modifier
                 .selectedBackground(selected)
+                .focusRequester(itemFocusRequester)
+                .focusDownloadOnTvRight(downloadFocusRequester)
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -175,7 +183,9 @@ fun MangaChapterListItem(
 
             ChapterDownloadIndicator(
                 enabled = downloadIndicatorEnabled,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .downloadFocusTarget(downloadFocusRequester, itemFocusRequester),
                 downloadStateProvider = downloadStateProvider,
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },
