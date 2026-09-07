@@ -1,6 +1,12 @@
 package eu.kanade.presentation.more.onboarding
 
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import eu.kanade.presentation.more.settings.screen.SettingsDataScreen
 import eu.kanade.presentation.util.isTvUi
 import eu.kanade.tachiyomi.util.system.isTvBox
@@ -52,6 +59,30 @@ internal class StorageStep : OnboardingStep {
 
         val isTvBox = isTvBox(LocalContext.current)
 
+        fun hasTvStorageAccess(): Boolean {
+            return Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager()
+        }
+
+        fun createDefaultTvFolder() {
+            val storage = folderProvider.directory()
+            if (!storage.exists()) {
+                storage.mkdirs()
+            }
+            if (storage.exists()) {
+                storagePref.set(storagePref.defaultValue())
+                _isComplete = true
+            }
+        }
+
+        val storageAccessLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult(),
+            onResult = {
+                if (hasTvStorageAccess()) {
+                    createDefaultTvFolder()
+                }
+            },
+        )
+
         val pickStorageLocation = SettingsDataScreen.storageLocationPicker(storagePref)
 
         Column(
@@ -75,11 +106,15 @@ internal class StorageStep : OnboardingStep {
                             .tvFocusable(interactionSource, isTvUi()),
                         interactionSource = interactionSource,
                         onClick = {
-                            val storage = folderProvider.directory()
-                            if (!storage.exists()) {
-                                storage.mkdirs()
+                            if (hasTvStorageAccess()) {
+                                createDefaultTvFolder()
+                            } else {
+                                storageAccessLauncher.launch(
+                                    Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                                        data = "package:${context.packageName}".toUri()
+                                    },
+                                )
                             }
-                            storagePref.set(storagePref.get())
                         },
                     ) {
                         Text(stringResource(AYMR.strings.onboarding_storage_action_create_folder))
@@ -124,7 +159,21 @@ internal class StorageStep : OnboardingStep {
 
         LaunchedEffect(Unit) {
             storagePref.changes()
-                .collectLatest { _isComplete = storagePref.isSet() }
+                .collectLatest {
+                    _isComplete = isTvStorageReady(
+                        isTvBox = isTvBox,
+                        storagePreferenceSet = storagePref.isSet(),
+                        hasExternalStorageManager = hasTvStorageAccess(),
+                    )
+                }
         }
     }
+}
+
+internal fun isTvStorageReady(
+    isTvBox: Boolean,
+    storagePreferenceSet: Boolean,
+    hasExternalStorageManager: Boolean,
+): Boolean {
+    return storagePreferenceSet && (!isTvBox || hasExternalStorageManager)
 }

@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -48,12 +47,12 @@ fun BrowseAnimeSourceContent(
     displayMode: LibraryDisplayMode,
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues,
-    gridFocusRequester: FocusRequester = FocusRequester(),
     onWebViewClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLocalAnimeSourceHelpClick: () -> Unit,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
+    initialItemFocusRequester: FocusRequester? = null,
 ) {
     val context = LocalContext.current
 
@@ -124,33 +123,33 @@ fun BrowseAnimeSourceContent(
     when (displayMode) {
         LibraryDisplayMode.ComfortableGrid -> {
             BrowseAnimeSourceComfortableGrid(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 animeList = animeList,
                 columns = columns,
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.List -> {
             BrowseAnimeSourceList(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 animeList = animeList,
                 entries = entries,
                 topBarHeight = topBarHeight,
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
             BrowseAnimeSourceCompactGrid(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 animeList = animeList,
                 columns = columns,
                 contentPadding = contentPadding,
                 onAnimeClick = onAnimeClick,
                 onAnimeLongClick = onAnimeLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
     }

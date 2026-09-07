@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
@@ -30,7 +32,7 @@ fun BrowseMangaSourceList(
     contentPadding: PaddingValues,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
-    modifier: Modifier = Modifier,
+    initialItemFocusRequester: FocusRequester?,
 ) {
     val sourceListState = rememberLazyListState()
     BoxWithConstraints {
@@ -38,7 +40,7 @@ fun BrowseMangaSourceList(
         val containerHeightPx = with(density) { this@BoxWithConstraints.maxHeight.roundToPx() }
 
         LazyColumn(
-            modifier = modifier.focusGroup(),
+            modifier = (initialItemFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier).focusGroup(),
             state = sourceListState,
             contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {

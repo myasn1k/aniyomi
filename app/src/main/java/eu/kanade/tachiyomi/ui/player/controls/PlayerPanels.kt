@@ -17,21 +17,28 @@
 
 package eu.kanade.tachiyomi.ui.player.controls
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.ui.player.Panels
 import eu.kanade.tachiyomi.ui.player.controls.components.panels.AudioDelayPanel
@@ -48,6 +55,18 @@ fun PlayerPanels(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(
+        enabled = panelShown != Panels.None,
+        onBack = onDismissRequest,
+    )
+    val panelFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(panelShown) {
+        if (panelShown != Panels.None) {
+            panelFocusRequester.requestFocus()
+            focusManager.moveFocus(FocusDirection.Next)
+        }
+    }
     AnimatedContent(
         targetState = panelShown,
         label = "panels",
@@ -56,7 +75,9 @@ fun PlayerPanels(
         transitionSpec = {
             fadeIn() + slideInHorizontally { it / 3 } togetherWith fadeOut() + slideOutHorizontally { it / 2 }
         },
-        modifier = modifier,
+        modifier = modifier
+            .focusRequester(panelFocusRequester)
+            .focusGroup(),
     ) { currentPanel ->
         when (currentPanel) {
             Panels.None -> {

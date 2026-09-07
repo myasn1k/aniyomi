@@ -31,12 +31,15 @@ import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,6 +60,7 @@ import eu.kanade.tachiyomi.extension.manga.model.MangaExtension
 import eu.kanade.tachiyomi.ui.browse.manga.extension.MangaExtensionUiModel
 import eu.kanade.tachiyomi.ui.browse.manga.extension.MangaExtensionsScreenModel
 import eu.kanade.tachiyomi.util.system.LocaleHelper
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import eu.kanade.tachiyomi.util.system.launchRequestPackageInstallsPermission
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
@@ -530,6 +534,13 @@ fun ExtensionTrustDialog(
     onClickDismiss: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val confirmFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(confirmFocusRequester) {
+        if (context.isTvUiEnabled()) {
+            confirmFocusRequester.requestFocus()
+        }
+    }
     AlertDialog(
         title = {
             Text(text = stringResource(MR.strings.untrusted_extension))
@@ -538,7 +549,10 @@ fun ExtensionTrustDialog(
             Text(text = stringResource(MR.strings.untrusted_extension_message))
         },
         confirmButton = {
-            TextButton(onClick = onClickConfirm) {
+            TextButton(
+                modifier = Modifier.focusRequester(confirmFocusRequester),
+                onClick = onClickConfirm,
+            ) {
                 Text(text = stringResource(MR.strings.ext_trust))
             }
         },

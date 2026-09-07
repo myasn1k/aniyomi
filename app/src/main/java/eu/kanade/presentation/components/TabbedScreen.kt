@@ -1,5 +1,6 @@
 package eu.kanade.presentation.components
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -16,14 +17,23 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.icerock.moko.resources.StringResource
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
@@ -37,6 +47,7 @@ fun TabbedScreen(
     tabs: ImmutableList<TabContent>,
     modifier: Modifier = Modifier,
     state: PagerState = rememberPagerState { tabs.size },
+    tvPage: MutableState<Int> = rememberSaveable { mutableStateOf(0) },
     mangaSearchQuery: String? = null,
     onChangeMangaSearchQuery: (String?) -> Unit = {},
     scrollable: Boolean = false,
@@ -46,19 +57,31 @@ fun TabbedScreen(
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val isTelevision = LocalContext.current.isTvUiEnabled()
+    val selectedPage = if (isTelevision) tvPage.value else state.currentPage
+    val tvPageStateHolder = rememberSaveableStateHolder()
+    val tabFocusRequesters = remember(tabs.size) {
+        List(tabs.size) { FocusRequester() }
+    }
+
+    LaunchedEffect(isTelevision, selectedPage) {
+        if (isTelevision) {
+            tabFocusRequesters[selectedPage].requestFocus()
+        }
+    }
 
     Scaffold(
         topBar = {
             if (titleRes != null) {
-                val tab = tabs[state.currentPage]
+                val tab = tabs[selectedPage]
                 val searchEnabled = tab.searchEnabled
 
-                val actualQuery = when (state.currentPage % 2) {
+                val actualQuery = when (selectedPage % 2) {
                     1 -> mangaSearchQuery // History and Browse
                     else -> animeSearchQuery
                 }
 
-                val actualOnChange = when (state.currentPage % 2) {
+                val actualOnChange = when (selectedPage % 2) {
                     1 -> onChangeMangaSearchQuery // History and Browse
                     else -> onChangeAnimeSearchQuery
                 }
@@ -91,12 +114,22 @@ fun TabbedScreen(
         ) {
             FlexibleTabRow(
                 scrollable = scrollable,
-                selectedTabIndex = state.currentPage,
+                selectedTabIndex = selectedPage,
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(
-                        selected = state.currentPage == index,
-                        onClick = { scope.launch { state.animateScrollToPage(index) } },
+                        modifier = Modifier.focusRequester(tabFocusRequesters[index]),
+                        selected = selectedPage == index,
+                        onClick = {
+                            if (isTelevision) {
+                                tabFocusRequesters[index].requestFocus()
+                                tvPage.value = index
+                            } else {
+                                scope.launch {
+                                    state.animateScrollToPage(index)
+                                }
+                            }
+                        },
                         text = {
                             TabText(
                                 text = stringResource(tab.titleRes),
@@ -108,15 +141,28 @@ fun TabbedScreen(
                 }
             }
 
-            HorizontalPager(
-                modifier = Modifier.fillMaxSize(),
-                state = state,
-                verticalAlignment = Alignment.Top,
-            ) { page ->
-                tabs[page].content(
-                    PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                    snackbarHostState,
-                )
+            if (isTelevision) {
+                // A pager can bring neighbouring pages into view during D-pad focus search,
+                // even with swipe input disabled. Only the active TV page may own focus.
+                Box(Modifier.fillMaxSize()) {
+                    tvPageStateHolder.SaveableStateProvider(selectedPage) {
+                        tabs[selectedPage].content(
+                            PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                            snackbarHostState,
+                        )
+                    }
+                }
+            } else {
+                HorizontalPager(
+                    modifier = Modifier.fillMaxSize(),
+                    state = state,
+                    verticalAlignment = Alignment.Top,
+                ) { page ->
+                    tabs[page].content(
+                        PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                        snackbarHostState,
+                    )
+                }
             }
         }
     }

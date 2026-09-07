@@ -28,16 +28,12 @@ fun Configuration.isTvUiMode(): Boolean {
 // TODO: move the logic to `isTabletUi()` when main activity is rewritten in Compose
 fun Context.prepareTabletUiContext(): Context {
     val configuration = resources.configuration
-    val expected = when (Injekt.get<UiPreferences>().tabletUiMode().get()) {
-        TabletUiMode.AUTOMATIC ->
-            configuration.smallestScreenWidthDp >= when (configuration.orientation) {
-                Configuration.ORIENTATION_PORTRAIT -> TABLET_UI_MIN_SCREEN_WIDTH_PORTRAIT_DP
-                else -> TABLET_UI_MIN_SCREEN_WIDTH_LANDSCAPE_DP
-            }
-        TabletUiMode.ALWAYS -> true
-        TabletUiMode.LANDSCAPE -> configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        TabletUiMode.NEVER -> false
-    }
+    val expected = shouldUseTabletUi(
+        mode = Injekt.get<UiPreferences>().tabletUiMode().get(),
+        smallestScreenWidthDp = configuration.smallestScreenWidthDp,
+        orientation = configuration.orientation,
+        isTelevision = isTvUiEnabled(),
+    )
     if (configuration.isTabletUi() != expected) {
         val overrideConf = Configuration()
         overrideConf.setTo(configuration)
@@ -49,6 +45,25 @@ fun Context.prepareTabletUiContext(): Context {
         return createConfigurationContext(overrideConf)
     }
     return this
+}
+
+internal fun shouldUseTabletUi(
+    mode: TabletUiMode,
+    smallestScreenWidthDp: Int,
+    orientation: Int,
+    isTelevision: Boolean,
+): Boolean {
+    return when (mode) {
+        TabletUiMode.AUTOMATIC ->
+            isTelevision ||
+                smallestScreenWidthDp >= when (orientation) {
+                    Configuration.ORIENTATION_PORTRAIT -> TABLET_UI_MIN_SCREEN_WIDTH_PORTRAIT_DP
+                    else -> TABLET_UI_MIN_SCREEN_WIDTH_LANDSCAPE_DP
+                }
+        TabletUiMode.ALWAYS -> true
+        TabletUiMode.LANDSCAPE -> orientation == Configuration.ORIENTATION_LANDSCAPE
+        TabletUiMode.NEVER -> false
+    }
 }
 
 /**

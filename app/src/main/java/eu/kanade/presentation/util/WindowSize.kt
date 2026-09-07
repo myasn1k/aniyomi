@@ -2,11 +2,14 @@ package eu.kanade.presentation.util
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.domain.ui.UiPreferences
-import eu.kanade.domain.ui.model.TvUiMode
 import eu.kanade.tachiyomi.util.system.isTabletUi
-import eu.kanade.tachiyomi.util.system.isTvUiMode
+import eu.kanade.tachiyomi.util.system.isTelevision
+import eu.kanade.tachiyomi.util.system.resolveTvUiMode
+import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -17,11 +20,7 @@ fun isTabletUi(): Boolean {
 }
 
 @Composable
-@ReadOnlyComposable
 fun isTvUi(): Boolean {
-    return when (Injekt.get<UiPreferences>().tvUiMode().get()) {
-        TvUiMode.ALWAYS -> true
-        TvUiMode.NEVER -> false
-        TvUiMode.AUTOMATIC -> LocalConfiguration.current.isTvUiMode()
-    }
+    val mode by Injekt.get<UiPreferences>().tvUiMode().collectAsState()
+    return resolveTvUiMode(mode, LocalContext.current.isTelevision())
 }

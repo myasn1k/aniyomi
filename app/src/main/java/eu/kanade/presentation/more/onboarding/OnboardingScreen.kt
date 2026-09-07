@@ -17,6 +17,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import eu.kanade.presentation.util.isTvUi
 import soup.compose.material.motion.animation.materialSharedAxisX
 import soup.compose.material.motion.animation.rememberSlideDistance
@@ -31,11 +32,12 @@ fun OnboardingScreen(
     onRestoreBackup: () -> Unit,
 ) {
     val slideDistance = rememberSlideDistance()
+    val acceptFocusRequester = remember { FocusRequester() }
 
     var currentStep by rememberSaveable { mutableIntStateOf(0) }
-    val steps = remember {
+    val steps = remember(acceptFocusRequester) {
         listOf(
-            ThemeStep(),
+            ThemeStep(acceptFocusRequester),
             DeviceModeStep(),
             StorageStep(),
             PermissionStep(),
@@ -66,6 +68,7 @@ fun OnboardingScreen(
             }
         },
         isTvUi = isTvUi(),
+        acceptFocusRequester = acceptFocusRequester,
     ) {
         Box(
             modifier = Modifier

@@ -1,6 +1,5 @@
 package eu.kanade.presentation.browse.anime.components
 
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
@@ -30,7 +31,7 @@ fun BrowseAnimeSourceList(
     contentPadding: PaddingValues,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
-    modifier: Modifier = Modifier,
+    initialItemFocusRequester: FocusRequester?,
 ) {
     val sourceListState = rememberLazyListState()
     BoxWithConstraints {
@@ -38,7 +39,6 @@ fun BrowseAnimeSourceList(
         val containerHeightPx = with(density) { this@BoxWithConstraints.maxHeight.roundToPx() }
 
         LazyColumn(
-            modifier = modifier.focusGroup(),
             state = sourceListState,
             contentPadding = contentPadding + PaddingValues(vertical = 8.dp),
         ) {
@@ -52,6 +52,11 @@ fun BrowseAnimeSourceList(
                 val anime by animeList[index]?.collectAsState() ?: return@items
                 BrowseAnimeSourceListItem(
                     anime = anime,
+                    modifier = if (index == 0 && initialItemFocusRequester != null) {
+                        Modifier.focusRequester(initialItemFocusRequester)
+                    } else {
+                        Modifier
+                    },
                     onClick = { onAnimeClick(anime) },
                     onLongClick = { onAnimeLongClick(anime) },
                     entries = entries,
@@ -73,12 +78,14 @@ fun BrowseAnimeSourceList(
 @Composable
 private fun BrowseAnimeSourceListItem(
     anime: Anime,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = onClick,
     entries: Int,
     containerHeight: Int,
 ) {
     EntryListItem(
+        modifier = modifier,
         title = anime.title,
         coverData = AnimeCover(
             animeId = anime.id,

@@ -44,6 +44,7 @@ import eu.kanade.tachiyomi.ui.player.controls.LocalPlayerButtonsClickEvent
 import tachiyomi.presentation.core.components.material.Button
 import tachiyomi.presentation.core.components.material.DISABLED_ALPHA
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.util.focusHighlight
 import tachiyomi.presentation.core.util.tvFocusable
 
 @Composable
@@ -143,26 +144,18 @@ fun FilledControlsButton(
     val interactionSource = remember { MutableInteractionSource() }
     val clickEvent = LocalPlayerButtonsClickEvent.current
 
-    Box(
-        modifier = modifier.padding(end = MaterialTheme.padding.small),
+    Button(
+        onClick = {
+            clickEvent()
+            onClick()
+        },
+        onLongClick = onLongClick,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .tvFocusable(interactionSource, isTvUi())
+            .padding(end = MaterialTheme.padding.small),
     ) {
-        Button(onClick = {}) {
-            Text(text = text)
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .combinedClickable(
-                    onClick = {
-                        clickEvent()
-                        onClick()
-                    },
-                    onLongClick = onLongClick,
-                    interactionSource = interactionSource,
-                    indication = null,
-                )
-                .tvFocusable(interactionSource, isTvUi()),
-        )
+        Text(text = text)
     }
 }
 

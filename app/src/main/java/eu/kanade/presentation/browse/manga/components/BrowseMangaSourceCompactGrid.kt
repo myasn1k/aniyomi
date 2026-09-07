@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -29,10 +31,10 @@ fun BrowseMangaSourceCompactGrid(
     contentPadding: PaddingValues,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
-    modifier: Modifier = Modifier,
+    initialItemFocusRequester: FocusRequester?,
 ) {
     LazyVerticalGrid(
-        modifier = modifier.focusGroup(),
+        modifier = (initialItemFocusRequester?.let { Modifier.focusRequester(it) } ?: Modifier).focusGroup(),
         columns = columns,
         contentPadding = contentPadding + PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(CommonEntryItemDefaults.GridVerticalSpacer),

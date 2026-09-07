@@ -33,12 +33,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import eu.kanade.presentation.components.downloadFocusTarget
+import eu.kanade.presentation.components.focusDownloadOnTvRight
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.presentation.util.isTvUi
 import eu.kanade.tachiyomi.data.download.manga.model.MangaDownload
@@ -76,6 +80,8 @@ fun MangaChapterListItem(
     // Swipe gestures should only be disabled on real TV hardware, not when the user
     // manually forces TvUiMode.ALWAYS on a touch device — that would break swipe-to-mark.
     val isTvHardware = LocalConfiguration.current.isTvUiMode()
+    val itemFocusRequester = remember { FocusRequester() }
+    val downloadFocusRequester = remember { FocusRequester() }
     val start = getSwipeAction(
         action = chapterSwipeStartAction,
         read = read,
@@ -105,6 +111,8 @@ fun MangaChapterListItem(
         Row(
             modifier = modifier
                 .selectedBackground(selected)
+                .focusRequester(itemFocusRequester)
+                .focusDownloadOnTvRight(downloadFocusRequester)
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
@@ -190,7 +198,9 @@ fun MangaChapterListItem(
 
             ChapterDownloadIndicator(
                 enabled = downloadIndicatorEnabled,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .downloadFocusTarget(downloadFocusRequester, itemFocusRequester),
                 downloadStateProvider = downloadStateProvider,
                 downloadProgressProvider = downloadProgressProvider,
                 onClick = { onDownloadClick?.invoke(it) },

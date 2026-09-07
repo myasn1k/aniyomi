@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.domain.entries.manga.model.readerOrientation
 import eu.kanade.domain.entries.manga.model.readingMode
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
@@ -15,6 +16,7 @@ import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.webtoon.WebtoonViewer
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
 import tachiyomi.presentation.core.components.HeadingItem
@@ -26,6 +28,7 @@ import java.text.NumberFormat
 
 @Composable
 internal fun ColumnScope.ReadingModePage(screenModel: ReaderSettingsScreenModel) {
+    val isTelevision = LocalContext.current.isTvUiEnabled()
     HeadingItem(MR.strings.pref_category_for_this_series)
     val manga by screenModel.mangaFlow.collectAsState()
 
@@ -44,41 +47,48 @@ internal fun ColumnScope.ReadingModePage(screenModel: ReaderSettingsScreenModel)
         }
     }
 
-    val orientation = remember(manga) {
-        ReaderOrientation.fromPreference(
-            manga?.readerOrientation?.toInt(),
-        )
-    }
-    SettingsChipRow(MR.strings.rotation_type) {
-        ReaderOrientation.entries.map {
-            FilterChip(
-                selected = it == orientation,
-                onClick = { screenModel.onChangeOrientation(it) },
-                label = { Text(stringResource(it.stringRes)) },
+    if (!isTelevision) {
+        val orientation = remember(manga) {
+            ReaderOrientation.fromPreference(
+                manga?.readerOrientation?.toInt(),
             )
+        }
+        SettingsChipRow(MR.strings.rotation_type) {
+            ReaderOrientation.entries.map {
+                FilterChip(
+                    selected = it == orientation,
+                    onClick = { screenModel.onChangeOrientation(it) },
+                    label = { Text(stringResource(it.stringRes)) },
+                )
+            }
         }
     }
 
     val viewer by screenModel.viewerFlow.collectAsState()
     if (viewer is WebtoonViewer) {
-        WebtoonViewerSettings(screenModel)
+        WebtoonViewerSettings(screenModel, isTelevision)
     } else {
-        PagerViewerSettings(screenModel)
+        PagerViewerSettings(screenModel, isTelevision)
     }
 }
 
 @Composable
-private fun ColumnScope.PagerViewerSettings(screenModel: ReaderSettingsScreenModel) {
+private fun ColumnScope.PagerViewerSettings(
+    screenModel: ReaderSettingsScreenModel,
+    isTelevision: Boolean,
+) {
     HeadingItem(MR.strings.pager_viewer)
 
     val navigationModePager by screenModel.preferences.navigationModePager().collectAsState()
     val pagerNavInverted by screenModel.preferences.pagerNavInverted().collectAsState()
-    TapZonesItems(
-        selected = navigationModePager,
-        onSelect = screenModel.preferences.navigationModePager()::set,
-        invertMode = pagerNavInverted,
-        onSelectInvertMode = screenModel.preferences.pagerNavInverted()::set,
-    )
+    if (!isTelevision) {
+        TapZonesItems(
+            selected = navigationModePager,
+            onSelect = screenModel.preferences.navigationModePager()::set,
+            invertMode = pagerNavInverted,
+            onSelectInvertMode = screenModel.preferences.pagerNavInverted()::set,
+        )
+    }
 
     val imageScaleType by screenModel.preferences.imageScaleType().collectAsState()
     SettingsChipRow(MR.strings.pref_image_scale_type) {
@@ -145,19 +155,24 @@ private fun ColumnScope.PagerViewerSettings(screenModel: ReaderSettingsScreenMod
 }
 
 @Composable
-private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenModel) {
+private fun ColumnScope.WebtoonViewerSettings(
+    screenModel: ReaderSettingsScreenModel,
+    isTelevision: Boolean,
+) {
     val numberFormat = remember { NumberFormat.getPercentInstance() }
 
     HeadingItem(MR.strings.webtoon_viewer)
 
     val navigationModeWebtoon by screenModel.preferences.navigationModeWebtoon().collectAsState()
     val webtoonNavInverted by screenModel.preferences.webtoonNavInverted().collectAsState()
-    TapZonesItems(
-        selected = navigationModeWebtoon,
-        onSelect = screenModel.preferences.navigationModeWebtoon()::set,
-        invertMode = webtoonNavInverted,
-        onSelectInvertMode = screenModel.preferences.webtoonNavInverted()::set,
-    )
+    if (!isTelevision) {
+        TapZonesItems(
+            selected = navigationModeWebtoon,
+            onSelect = screenModel.preferences.navigationModeWebtoon()::set,
+            invertMode = webtoonNavInverted,
+            onSelectInvertMode = screenModel.preferences.webtoonNavInverted()::set,
+        )
+    }
 
     val webtoonSidePadding by screenModel.preferences.webtoonSidePadding().collectAsState()
     SliderItem(
@@ -202,10 +217,12 @@ private fun ColumnScope.WebtoonViewerSettings(screenModel: ReaderSettingsScreenM
         )
     }
 
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_double_tap_zoom),
-        pref = screenModel.preferences.webtoonDoubleTapZoomEnabled(),
-    )
+    if (!isTelevision) {
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_double_tap_zoom),
+            pref = screenModel.preferences.webtoonDoubleTapZoomEnabled(),
+        )
+    }
     CheckboxItem(
         label = stringResource(MR.strings.pref_webtoon_disable_zoom_out),
         pref = screenModel.preferences.webtoonDisableZoomOut(),

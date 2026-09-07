@@ -1,6 +1,5 @@
 package eu.kanade.presentation.browse.anime.components
 
-import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -10,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -29,10 +30,9 @@ fun BrowseAnimeSourceComfortableGrid(
     contentPadding: PaddingValues,
     onAnimeClick: (Anime) -> Unit,
     onAnimeLongClick: (Anime) -> Unit,
-    modifier: Modifier = Modifier,
+    initialItemFocusRequester: FocusRequester?,
 ) {
     LazyVerticalGrid(
-        modifier = modifier.focusGroup(),
         columns = columns,
         contentPadding = contentPadding + PaddingValues(8.dp),
         verticalArrangement = Arrangement.spacedBy(CommonEntryItemDefaults.GridVerticalSpacer),
@@ -48,6 +48,11 @@ fun BrowseAnimeSourceComfortableGrid(
             val anime by animeList[index]?.collectAsState() ?: return@items
             BrowseAnimeSourceComfortableGridItem(
                 anime = anime,
+                modifier = if (index == 0 && initialItemFocusRequester != null) {
+                    Modifier.focusRequester(initialItemFocusRequester)
+                } else {
+                    Modifier
+                },
                 onClick = { onAnimeClick(anime) },
                 onLongClick = { onAnimeLongClick(anime) },
             )
@@ -64,10 +69,12 @@ fun BrowseAnimeSourceComfortableGrid(
 @Composable
 private fun BrowseAnimeSourceComfortableGridItem(
     anime: Anime,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onLongClick: () -> Unit = onClick,
 ) {
     EntryComfortableGridItem(
+        modifier = modifier,
         title = anime.title,
         coverData = AnimeCover(
             animeId = anime.id,

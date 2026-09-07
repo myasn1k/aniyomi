@@ -40,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -51,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import eu.kanade.presentation.components.downloadFocusTarget
+import eu.kanade.presentation.components.focusDownloadOnTvRight
 import eu.kanade.presentation.entries.components.DotSeparatorText
 import eu.kanade.presentation.entries.components.ItemCover
 import eu.kanade.presentation.util.isTvUi
@@ -95,6 +99,8 @@ fun AnimeEpisodeListItem(
     // Swipe gestures should only be disabled on real TV hardware, not when the user
     // manually forces TvUiMode.ALWAYS on a touch device — that would break swipe-to-mark.
     val isTvHardware = LocalConfiguration.current.isTvUiMode()
+    val itemFocusRequester = remember { FocusRequester() }
+    val downloadFocusRequester = remember { FocusRequester() }
     val start = getSwipeAction(
         action = episodeSwipeStartAction,
         seen = seen,
@@ -127,6 +133,8 @@ fun AnimeEpisodeListItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .selectedBackground(selected)
+                .focusRequester(itemFocusRequester)
+                .focusDownloadOnTvRight(downloadFocusRequester)
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
@@ -149,6 +157,8 @@ fun AnimeEpisodeListItem(
                     downloadStateProvider = downloadStateProvider,
                     downloadProgressProvider = downloadProgressProvider,
                     onDownloadClick = onDownloadClick,
+                    downloadFocusRequester = downloadFocusRequester,
+                    itemFocusRequester = itemFocusRequester,
                 )
                 return@Row
             }
@@ -184,6 +194,8 @@ fun AnimeEpisodeListItem(
                                     downloadStateProvider = downloadStateProvider,
                                     downloadProgressProvider = downloadProgressProvider,
                                     onDownloadClick = onDownloadClick,
+                                    downloadFocusRequester = downloadFocusRequester,
+                                    itemFocusRequester = itemFocusRequester,
                                 )
                             }
                         }
@@ -216,6 +228,8 @@ fun AnimeEpisodeListItem(
                             downloadStateProvider = downloadStateProvider,
                             downloadProgressProvider = downloadProgressProvider,
                             onDownloadClick = onDownloadClick,
+                            downloadFocusRequester = downloadFocusRequester,
+                            itemFocusRequester = itemFocusRequester,
                         )
                     }
                 }
@@ -237,6 +251,8 @@ private fun RowScope.SimpleEpisodeListItemImpl(
     downloadStateProvider: () -> AnimeDownload.State,
     downloadProgressProvider: () -> Int,
     onDownloadClick: ((EpisodeDownloadAction) -> Unit)?,
+    downloadFocusRequester: FocusRequester,
+    itemFocusRequester: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -266,6 +282,8 @@ private fun RowScope.SimpleEpisodeListItemImpl(
         downloadStateProvider = downloadStateProvider,
         downloadProgressProvider = downloadProgressProvider,
         onDownloadClick = onDownloadClick,
+        downloadFocusRequester = downloadFocusRequester,
+        itemFocusRequester = itemFocusRequester,
     )
 }
 
@@ -481,6 +499,8 @@ private fun BookmarkDownloadIcons(
     downloadStateProvider: () -> AnimeDownload.State,
     downloadProgressProvider: () -> Int,
     onDownloadClick: ((EpisodeDownloadAction) -> Unit)?,
+    downloadFocusRequester: FocusRequester,
+    itemFocusRequester: FocusRequester,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         if (bookmark) {
@@ -497,7 +517,8 @@ private fun BookmarkDownloadIcons(
         EpisodeDownloadIndicator(
             enabled = downloadIndicatorEnabled,
             modifier = Modifier
-                .padding(start = 4.dp),
+                .padding(start = 4.dp)
+                .downloadFocusTarget(downloadFocusRequester, itemFocusRequester),
             downloadStateProvider = downloadStateProvider,
             downloadProgressProvider = downloadProgressProvider,
             onClick = { onDownloadClick?.invoke(it) },

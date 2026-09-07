@@ -81,6 +81,7 @@ import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils
 import eu.kanade.tachiyomi.ui.player.utils.ChapterUtils.Companion.getStringRes
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import eu.kanade.tachiyomi.util.system.powerManager
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
@@ -122,6 +123,7 @@ class PlayerActivity : BaseActivity() {
     val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     private var mediaSession: MediaSession? = null
+    private var consumedTvKeyDown: Int? = null
     private val gesturePreferences: GesturePreferences by lazy { viewModel.gesturePreferences }
     private val playerPreferences: PlayerPreferences by lazy { viewModel.playerPreferences }
     private val audioPreferences: AudioPreferences = Injekt.get()
@@ -269,6 +271,7 @@ class PlayerActivity : BaseActivity() {
             TachiyomiTheme {
                 PlayerControls(
                     viewModel = viewModel,
+                    isTelevision = isTvUiEnabled(),
                     onBackPress = {
                         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
                             enterPictureInPictureMode(createPipParams())
@@ -364,6 +367,10 @@ class PlayerActivity : BaseActivity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (isTvUiEnabled() && viewModel.controlsShown.value) {
+            viewModel.hideControls()
+            return
+        }
         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
             if (viewModel.sheetShown.value == Sheets.None &&
                 viewModel.panelShown.value == Panels.None &&
@@ -834,6 +841,10 @@ class PlayerActivity : BaseActivity() {
 
     private fun setupPlayerOrientation() {
         if (player.isExiting) return
+        if (isTvUiEnabled()) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            return
+        }
         requestedOrientation = when (playerPreferences.defaultPlayerOrientationType().get()) {
             PlayerOrientation.Free -> ActivityInfo.SCREEN_ORIENTATION_SENSOR
             PlayerOrientation.Video -> if ((player.getVideoOutAspect() ?: 0.0) > 1.0) {
@@ -846,12 +857,48 @@ class PlayerActivity : BaseActivity() {
             PlayerOrientation.ReversePortrait -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
             PlayerOrientation.SensorPortrait -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
             PlayerOrientation.Landscape -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            PlayerOrientation.ReverseLandscape -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            PlayerOrientation.ReverseLandscape -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
             PlayerOrientation.SensorLandscape -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (isTvUiEnabled()) {
+            val modalOverlayShown = viewModel.sheetShown.value != Sheets.None ||
+                viewModel.panelShown.value != Panels.None ||
+                viewModel.dialogShown.value != Dialogs.None
+            val action = tvRemoteAction(
+                keyCode = keyCode,
+                controlsShown = viewModel.controlsShown.value,
+                modalOverlayShown = modalOverlayShown,
+            )
+            if (action != null) {
+                consumedTvKeyDown = keyCode
+                when (action) {
+                    TvRemoteAction.ShowControls -> viewModel.showControls()
+                    TvRemoteAction.SeekBackward -> viewModel.handleLeftDoubleTap()
+                    TvRemoteAction.SeekForward -> viewModel.handleRightDoubleTap()
+                    TvRemoteAction.TogglePlayback -> {
+                        viewModel.pauseUnpause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.Play -> {
+                        viewModel.unpause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.Pause -> {
+                        viewModel.pause()
+                        viewModel.showControls()
+                    }
+                    TvRemoteAction.PreviousEpisode -> viewModel.changeEpisode(previous = true)
+                    TvRemoteAction.NextEpisode -> viewModel.changeEpisode(previous = false)
+                    TvRemoteAction.HideControls -> viewModel.hideControls()
+                    TvRemoteAction.Stop -> finishAndRemoveTask()
+                }
+                return true
+            }
+            if (isTvNavigationKey(keyCode)) return super.onKeyDown(keyCode, event)
+        }
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 viewModel.changeVolumeBy(1)
@@ -869,23 +916,6 @@ class PlayerActivity : BaseActivity() {
             KeyEvent.KEYCODE_MEDIA_REWIND -> viewModel.handleLeftDoubleTap()
             KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> viewModel.handleRightDoubleTap()
 
-            // With controls hidden, D-pad OK/up/down reveal them; once shown, let the
-            // event fall through to Compose's focus system to navigate between buttons.
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                if (!viewModel.controlsShown.value) {
-                    viewModel.showControls()
-                } else {
-                    return super.onKeyDown(keyCode, event)
-                }
-            }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> {
-                if (!viewModel.controlsShown.value) {
-                    viewModel.showControls()
-                } else {
-                    return super.onKeyDown(keyCode, event)
-                }
-            }
-
             // other keys should be bound by the user in input.conf ig
             else -> {
                 event?.let { player.onKey(it) }
@@ -896,6 +926,13 @@ class PlayerActivity : BaseActivity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (shouldConsumeTvKeyUp(consumedTvKeyDown, keyCode)) {
+            consumedTvKeyDown = null
+            return true
+        }
+        if (isTvUiEnabled() && isTvNavigationKey(keyCode)) {
+            return super.onKeyUp(keyCode, event)
+        }
         if (player.onKey(event!!)) return true
         return super.onKeyUp(keyCode, event)
     }

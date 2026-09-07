@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.domain.base.BasePreferences
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
@@ -22,8 +23,10 @@ import eu.kanade.tachiyomi.ui.player.VLC_PLAYER
 import eu.kanade.tachiyomi.ui.player.WEB_VIDEO_CASTER
 import eu.kanade.tachiyomi.ui.player.X_PLAYER
 import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.collections.immutable.toPersistentMap
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -41,6 +44,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
+        val isTelevision = LocalContext.current.isTvUiEnabled()
         val playerPreferences = remember { Injekt.get<PlayerPreferences>() }
         val basePreferences = remember { Injekt.get<BasePreferences>() }
         val deviceSupportsPip = basePreferences.deviceHasPip()
@@ -63,18 +67,22 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                 preference = playerPreferences.preserveWatchingPosition(),
                 title = stringResource(AYMR.strings.pref_preserve_watching_position),
             ),
-            Preference.PreferenceItem.ListPreference(
-                preference = playerPreferences.defaultPlayerOrientationType(),
-                entries = PlayerOrientation.entries.associateWith {
-                    stringResource(it.titleRes)
-                }.toPersistentMap(),
-                title = stringResource(AYMR.strings.pref_category_player_orientation),
-            ),
-            getControlsGroup(playerPreferences = playerPreferences),
+            if (!isTelevision) {
+                Preference.PreferenceItem.ListPreference(
+                    preference = playerPreferences.defaultPlayerOrientationType(),
+                    entries = PlayerOrientation.entries.associateWith {
+                        stringResource(it.titleRes)
+                    }.toPersistentMap(),
+                    title = stringResource(AYMR.strings.pref_category_player_orientation),
+                )
+            } else {
+                null
+            },
+            getControlsGroup(playerPreferences = playerPreferences, isTelevision = isTelevision),
             getHosterGroup(playerPreferences = playerPreferences),
-            getDisplayGroup(playerPreferences = playerPreferences),
+            getDisplayGroup(playerPreferences = playerPreferences, isTelevision = isTelevision),
             getIntroSkipGroup(playerPreferences = playerPreferences),
-            if (deviceSupportsPip) getPipGroup(playerPreferences = playerPreferences) else null,
+            if (deviceSupportsPip && !isTelevision) getPipGroup(playerPreferences = playerPreferences) else null,
             getExternalPlayerGroup(
                 playerPreferences = playerPreferences,
                 basePreferences = basePreferences,
@@ -83,7 +91,10 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getControlsGroup(playerPreferences: PlayerPreferences): Preference.PreferenceGroup {
+    private fun getControlsGroup(
+        playerPreferences: PlayerPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         val allowGestures = playerPreferences.allowGestures()
         val showLoading = playerPreferences.showLoadingCircle()
         val showChapter = playerPreferences.showCurrentChapter()
@@ -92,11 +103,15 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.pref_category_controls),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = allowGestures,
-                    title = stringResource(AYMR.strings.pref_controls_allow_gestures_in_panels),
-                ),
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = allowGestures,
+                        title = stringResource(AYMR.strings.pref_controls_allow_gestures_in_panels),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = showLoading,
                     title = stringResource(AYMR.strings.pref_controls_show_loading),
@@ -106,15 +121,19 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                     title = stringResource(AYMR.strings.pref_controls_show_chapter_indicator),
                     subtitle = stringResource(AYMR.strings.pref_controls_show_chapter_indicator_info),
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = rememberPlayerBrightness,
-                    title = stringResource(AYMR.strings.pref_remember_brightness),
-                ),
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = rememberPlayerBrightness,
+                        title = stringResource(AYMR.strings.pref_remember_brightness),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = rememberPlayerVolume,
                     title = stringResource(AYMR.strings.pref_remember_volume),
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 
@@ -139,7 +158,10 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getDisplayGroup(playerPreferences: PlayerPreferences): Preference.PreferenceGroup {
+    private fun getDisplayGroup(
+        playerPreferences: PlayerPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         val fullScreen = playerPreferences.playerFullscreen()
         val hideControls = playerPreferences.hideControls()
         val displayVol = playerPreferences.displayVolPer()
@@ -153,12 +175,16 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = fullScreen,
-                    title = stringResource(AYMR.strings.pref_player_fullscreen),
-                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P,
-                ),
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = fullScreen,
+                        title = stringResource(AYMR.strings.pref_player_fullscreen),
+                        enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P,
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = hideControls,
                     title = stringResource(AYMR.strings.pref_player_hide_controls),
@@ -167,10 +193,14 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                     preference = displayVol,
                     title = stringResource(AYMR.strings.pref_controls_display_volume_percentage),
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = showSystemBar,
-                    title = stringResource(AYMR.strings.pref_show_system_bar),
-                ),
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = showSystemBar,
+                        title = stringResource(AYMR.strings.pref_show_system_bar),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = reduceMotion,
                     title = stringResource(AYMR.strings.pref_reduce_motion),
@@ -192,7 +222,7 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
                         true
                     },
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 

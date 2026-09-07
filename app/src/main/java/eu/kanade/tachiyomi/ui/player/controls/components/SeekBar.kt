@@ -18,6 +18,7 @@
 package eu.kanade.tachiyomi.ui.player.controls.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -30,13 +31,21 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -45,10 +54,12 @@ import dev.vivvvek.seeker.SeekerDefaults
 import dev.vivvvek.seeker.Segment
 import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.ui.player.controls.LocalPlayerButtonsClickEvent
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import `is`.xyz.mpv.Utils
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.util.focusHighlight
 
 @Immutable
 data class IndexedSegment(
@@ -63,6 +74,18 @@ data class IndexedSegment(
     }
 
     fun toSegment(): Segment = Segment(name, start, color)
+}
+
+internal fun seekBarDisplayPosition(
+    playerPosition: Float,
+    gestureSeekPosition: Float,
+    internalSeekPosition: Float,
+    isGestureSeeking: Boolean,
+    isSeeking: Boolean,
+): Float = when {
+    isGestureSeeking -> gestureSeekPosition
+    isSeeking -> internalSeekPosition
+    else -> playerPosition
 }
 
 @Composable
@@ -81,15 +104,22 @@ fun SeekbarWithTimers(
     chapters: ImmutableList<Segment>,
     modifier: Modifier = Modifier,
 ) {
-    var internalSeekPosition by remember { mutableFloatStateOf(0f) }
-    val position = if (isGestureSeeking) {
-        seekPosition
-    } else if (isSeeking) {
-        internalSeekPosition
-    } else {
-        playerPosition
+    // This timer is mounted for the entire lifetime of the timeline. The central
+    // play button is not: loading and seek feedback can replace it at any time.
+    val escapeFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalContext.current.isTvUiEnabled()
+    var internalSeekPosition by remember { mutableFloatStateOf(playerPosition) }
+    val position = seekBarDisplayPosition(
+        playerPosition = playerPosition,
+        gestureSeekPosition = seekPosition,
+        internalSeekPosition = internalSeekPosition,
+        isGestureSeeking = isGestureSeeking,
+        isSeeking = isSeeking,
+    )
+    var remoteSeekInProgress by remember { mutableStateOf(false) }
+    LaunchedEffect(position, isSeeking) {
+        if (!isSeeking) internalSeekPosition = position
     }
-
     val clickEvent = LocalPlayerButtonsClickEvent.current
     Row(
         modifier = modifier.height(48.dp),
@@ -103,7 +133,7 @@ fun SeekbarWithTimers(
                 clickEvent()
                 positionTimerOnClick()
             },
-            modifier = Modifier.width(92.dp),
+            modifier = Modifier.width(92.dp).focusRequester(escapeFocusRequester),
         )
         Seeker(
             value = position.coerceIn(0f, duration),
@@ -127,7 +157,56 @@ fun SeekbarWithTimers(
                     } +
                         it
                 },
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .focusHighlight()
+                .focusProperties {
+                    if (isTelevision) {
+                        up = escapeFocusRequester
+                        down = escapeFocusRequester
+                    }
+                }
+                .onFocusChanged {
+                    if (!it.isFocused) remoteSeekInProgress = false
+                }
+                .onPreviewKeyEvent { event ->
+                    if (!isTelevision) return@onPreviewKeyEvent false
+                    val nativeEvent = event.nativeKeyEvent
+                    if (isTvSeekActivationKey(nativeEvent.keyCode)) {
+                        // Seeker treats D-pad select as a click. On TV, focus alone enables seeking.
+                        return@onPreviewKeyEvent true
+                    }
+                    if (isTvSeekEscapeKey(nativeEvent.keyCode)) {
+                        if (nativeEvent.action == android.view.KeyEvent.ACTION_DOWN) {
+                            clickEvent()
+                            if (remoteSeekInProgress) {
+                                onValueChangeFinished(internalSeekPosition)
+                                remoteSeekInProgress = false
+                            }
+                            escapeFocusRequester.requestFocus()
+                        }
+                        return@onPreviewKeyEvent true
+                    }
+                    val step = tvSeekStepSeconds(nativeEvent.keyCode, nativeEvent.repeatCount)
+                        ?: return@onPreviewKeyEvent false
+                    when (nativeEvent.action) {
+                        android.view.KeyEvent.ACTION_DOWN -> {
+                            remoteSeekInProgress = true
+                            internalSeekPosition = (internalSeekPosition + step).coerceIn(0f, duration)
+                            onValueChange(internalSeekPosition)
+                            true
+                        }
+                        android.view.KeyEvent.ACTION_UP -> {
+                            if (shouldFinishTvSeek(nativeEvent.keyCode, remoteSeekInProgress)) {
+                                onValueChangeFinished(internalSeekPosition)
+                            }
+                            remoteSeekInProgress = false
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                .focusable(enabled = isTelevision),
             colors = SeekerDefaults.seekerColors(
                 progressColor = MaterialTheme.colorScheme.primary,
                 thumbColor = MaterialTheme.colorScheme.primary,
@@ -145,6 +224,30 @@ fun SeekbarWithTimers(
             modifier = Modifier.width(92.dp),
         )
     }
+}
+
+internal fun tvSeekStepSeconds(keyCode: Int, repeatCount: Int): Float? {
+    val distance = if (repeatCount == 0) 30f else 5f
+    return when (keyCode) {
+        android.view.KeyEvent.KEYCODE_DPAD_LEFT -> -distance
+        android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> distance
+        else -> null
+    }
+}
+
+internal fun isTvSeekEscapeKey(keyCode: Int): Boolean {
+    return keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP ||
+        keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN
+}
+
+internal fun isTvSeekActivationKey(keyCode: Int): Boolean {
+    return keyCode == android.view.KeyEvent.KEYCODE_DPAD_CENTER ||
+        keyCode == android.view.KeyEvent.KEYCODE_ENTER ||
+        keyCode == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER
+}
+
+internal fun shouldFinishTvSeek(keyCode: Int, seekInProgress: Boolean): Boolean {
+    return seekInProgress && tvSeekStepSeconds(keyCode, repeatCount = 0) != null
 }
 
 @Composable

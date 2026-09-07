@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -45,6 +46,7 @@ import eu.kanade.presentation.more.settings.screen.player.editor.PlayerSettingsE
 import eu.kanade.presentation.more.settings.widget.TextPreferenceWidget
 import eu.kanade.presentation.util.LocalBackPress
 import eu.kanade.presentation.util.Screen
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
@@ -78,6 +80,8 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
 
     @Composable
     fun Content(twoPane: Boolean) {
+        val isTelevision = LocalContext.current.isTvUiEnabled()
+        val visibleItems = items.filterNot { isTelevision && it.screen == PlayerSettingsGesturesScreen }
         val navigator = LocalNavigator.currentOrThrow
         val backPress = LocalBackPress.currentOrThrow
         val containerColor = if (twoPane) getPalerSurface() else MaterialTheme.colorScheme.surface
@@ -113,7 +117,8 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
             content = { contentPadding ->
                 val state = rememberLazyListState()
                 val indexSelected = if (twoPane) {
-                    items.indexOfFirst { it.screen::class == navigator.items.first()::class }
+                    visibleItems.indexOfFirst { it.screen::class == navigator.items.first()::class }
+                        .coerceAtLeast(0)
                         .also {
                             LaunchedEffect(Unit) {
                                 state.animateScrollToItem(it)
@@ -133,7 +138,7 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
                     contentPadding = contentPadding,
                 ) {
                     itemsIndexed(
-                        items = items,
+                        items = visibleItems,
                         key = { _, item -> item.hashCode() },
                     ) { index, item ->
                         val selected = indexSelected == index
@@ -186,7 +191,15 @@ class PlayerSettingsMainScreen(private val mainSettings: Boolean) : Screen() {
     private val items = listOf(
         Item(
             titleRes = AYMR.strings.pref_player_internal,
-            subtitleRes = AYMR.strings.pref_player_internal_summary,
+            formatSubtitle = {
+                stringResource(
+                    if (LocalContext.current.isTvUiEnabled()) {
+                        AYMR.strings.pref_player_internal_summary_tv
+                    } else {
+                        AYMR.strings.pref_player_internal_summary
+                    },
+                )
+            },
             icon = Icons.Outlined.PlayCircleOutline,
             screen = PlayerSettingsPlayerScreen,
         ),

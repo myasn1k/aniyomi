@@ -1,13 +1,11 @@
 package tachiyomi.presentation.core.util
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -30,8 +30,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 
-private val TvFocusBorderWidth = 2.dp
-private val TvFocusBorderShape = RoundedCornerShape(8.dp)
+private val TvFocusBorderWidth = 6.dp
 
 /**
  * Draws a visible focus indicator on Android TV, driven by the [interactionSource] that's
@@ -50,8 +49,40 @@ fun Modifier.tvFocusable(
 ): Modifier {
     if (!enabled) return this
     val isFocused by interactionSource.collectIsFocusedAsState()
-    val focusColor = MaterialTheme.colorScheme.primary
-    return if (isFocused) this.border(TvFocusBorderWidth, focusColor, TvFocusBorderShape) else this
+    return tvFocusIndicator(isFocused)
+}
+
+/** Observes the existing focus target; ordinary mobile UI keeps its original indication. */
+fun Modifier.focusHighlight(): Modifier = composed {
+    if (!LocalTvUiEnabled.current) return@composed Modifier
+    var isFocused by remember { mutableStateOf(false) }
+    Modifier
+        .onFocusChanged { isFocused = it.isFocused }
+        .tvFocusIndicator(isFocused)
+}
+
+@Composable
+private fun Modifier.tvFocusIndicator(isFocused: Boolean): Modifier {
+    val color = MaterialTheme.colorScheme.primary
+    return this
+        .drawWithContent {
+            if (isFocused) {
+                drawRoundRect(
+                    color.copy(alpha = 0.34f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
+                )
+            }
+            drawContent()
+            if (isFocused) {
+                drawRoundRect(
+                    color = Color.White,
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = TvFocusBorderWidth.toPx(),
+                    ),
+                )
+            }
+        }
 }
 
 fun Modifier.selectedBackground(isSelected: Boolean): Modifier = if (isSelected) {
@@ -71,12 +102,14 @@ fun Modifier.secondaryItemAlpha(): Modifier = this.alpha(SECONDARY_ALPHA)
 fun Modifier.clickableNoIndication(
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit,
-) = this.combinedClickable(
-    interactionSource = null,
-    indication = null,
-    onLongClick = onLongClick,
-    onClick = onClick,
-)
+) = this
+    .focusHighlight()
+    .combinedClickable(
+        interactionSource = null,
+        indication = null,
+        onLongClick = onLongClick,
+        onClick = onClick,
+    )
 
 /**
  * For TextField, the provided [action] will be invoked when

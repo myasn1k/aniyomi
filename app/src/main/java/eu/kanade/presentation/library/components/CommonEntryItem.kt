@@ -47,6 +47,7 @@ import eu.kanade.presentation.util.isTvUi
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.BadgeGroup
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 import tachiyomi.presentation.core.util.selectedBackground
 import tachiyomi.presentation.core.util.tvFocusable
 import tachiyomi.domain.entries.EntryCover as EntryCoverModel
@@ -85,11 +86,13 @@ fun EntryCompactGridItem(
     coverAlpha: Float = 1f,
     coverBadgeStart: @Composable (RowScope.() -> Unit)? = null,
     coverBadgeEnd: @Composable (RowScope.() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     GridItemSelectable(
         isSelected = isSelected,
         onClick = onClick,
         onLongClick = onLongClick,
+        modifier = modifier,
     ) {
         EntryGridCover(
             cover = {
@@ -191,11 +194,13 @@ fun EntryComfortableGridItem(
     coverBadgeStart: (@Composable RowScope.() -> Unit)? = null,
     coverBadgeEnd: (@Composable RowScope.() -> Unit)? = null,
     onClickContinueViewing: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
 ) {
     GridItemSelectable(
         isSelected = isSelected,
         onClick = onClick,
         onLongClick = onLongClick,
+        modifier = modifier,
     ) {
         Column {
             EntryGridCover(

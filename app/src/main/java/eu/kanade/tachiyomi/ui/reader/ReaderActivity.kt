@@ -19,6 +19,7 @@ import android.view.MotionEvent
 import android.view.View.LAYER_TYPE_HARDWARE
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import androidx.core.content.getSystemService
 import androidx.core.graphics.ColorUtils
@@ -76,6 +78,7 @@ import eu.kanade.tachiyomi.ui.reader.viewer.ReaderProgressIndicator
 import eu.kanade.tachiyomi.ui.webview.WebViewActivity
 import eu.kanade.tachiyomi.util.system.hasDisplayCutout
 import eu.kanade.tachiyomi.util.system.isNightMode
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toShareIntent
 import eu.kanade.tachiyomi.util.system.toast
@@ -320,6 +323,17 @@ class ReaderActivity : BaseActivity() {
      * Dispatches a key event. If the viewer doesn't handle it, call the default implementation.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (isTvUiEnabled()) {
+            if (viewModel.state.value.menuVisible && isTvReaderUiNavigationKey(event.keyCode)) {
+                return super.dispatchKeyEvent(event)
+            }
+            if (!viewModel.state.value.menuVisible && isTvReaderMenuKey(event.keyCode)) {
+                if (event.action == KeyEvent.ACTION_UP) {
+                    toggleMenu()
+                }
+                return true
+            }
+        }
         val handled = viewModel.state.value.viewer?.handleKeyEvent(event) ?: false
         return handled || super.dispatchKeyEvent(event)
     }
@@ -351,6 +365,15 @@ class ReaderActivity : BaseActivity() {
 
         binding.dialogRoot.setComposeContent {
             val state by viewModel.state.collectAsState()
+            val focusManager = LocalFocusManager.current
+
+            // The TV remote must be able to leave the controls without leaving the chapter.
+            // Dialogs and popup menus handle Back before the underlying reader controls.
+            BackHandler(enabled = isTvUiEnabled() && state.menuVisible && state.dialog == null) {
+                focusManager.clearFocus(force = true)
+                hideMenu()
+            }
+
             val settingsScreenModel = remember {
                 ReaderSettingsScreenModel(
                     readerState = viewModel.state,
@@ -971,4 +994,20 @@ class ReaderActivity : BaseActivity() {
             binding.viewerContainer.setLayerType(LAYER_TYPE_HARDWARE, paint)
         }
     }
+}
+
+internal fun isTvReaderMenuKey(keyCode: Int): Boolean {
+    return keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+        keyCode == KeyEvent.KEYCODE_ENTER ||
+        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+        keyCode == KeyEvent.KEYCODE_BUTTON_A ||
+        keyCode == KeyEvent.KEYCODE_SPACE
+}
+
+internal fun isTvReaderUiNavigationKey(keyCode: Int): Boolean {
+    return keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+        keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+        keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+        keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+        isTvReaderMenuKey(keyCode)
 }

@@ -34,6 +34,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import cafe.adriel.voyager.core.model.rememberScreenModel
@@ -58,6 +59,7 @@ import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreen
 import eu.kanade.tachiyomi.ui.category.CategoriesTab
 import eu.kanade.tachiyomi.ui.entries.manga.MangaScreen
 import eu.kanade.tachiyomi.ui.webview.WebViewScreen
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -130,9 +132,9 @@ data class BrowseMangaSourceScreen(
         }
 
         var topBarHeight by remember { mutableIntStateOf(0) }
-        // D-pad down from the listing chips would otherwise keep cycling within this row
-        // instead of escaping into the grid/list below; wire an explicit target for it.
-        val gridFocusRequester = remember { FocusRequester() }
+        val isTv = LocalContext.current.isTvUiEnabled()
+        val initialItemFocusRequester = remember { FocusRequester() }
+        val mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
         Scaffold(
             topBar = {
                 Column(
@@ -155,12 +157,14 @@ data class BrowseMangaSourceScreen(
 
                     Row(
                         modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .focusProperties { down = gridFocusRequester }
+                            .then(if (isTv) Modifier else Modifier.horizontalScroll(rememberScrollState()))
                             .padding(horizontal = MaterialTheme.padding.small),
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                     ) {
                         FilterChip(
+                            modifier = Modifier.focusProperties {
+                                if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                            },
                             selected = state.listing == Listing.Popular,
                             onClick = {
                                 screenModel.resetFilters()
@@ -180,6 +184,9 @@ data class BrowseMangaSourceScreen(
                         )
                         if ((screenModel.source as CatalogueSource).supportsLatest) {
                             FilterChip(
+                                modifier = Modifier.focusProperties {
+                                    if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                                },
                                 selected = state.listing == Listing.Latest,
                                 onClick = {
                                     screenModel.resetFilters()
@@ -200,6 +207,9 @@ data class BrowseMangaSourceScreen(
                         }
                         if (state.filters.isNotEmpty()) {
                             FilterChip(
+                                modifier = Modifier.focusProperties {
+                                    if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                                },
                                 selected = state.listing is Listing.Search,
                                 onClick = screenModel::openFilterSheet,
                                 leadingIcon = {
@@ -224,12 +234,11 @@ data class BrowseMangaSourceScreen(
         ) { paddingValues ->
             BrowseSourceContent(
                 source = screenModel.source,
-                mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems(),
+                mangaList = mangaList,
                 columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
                 entries = screenModel.getColumnsPreferenceForCurrentOrientation(LocalConfiguration.current.orientation),
                 topBarHeight = topBarHeight,
                 displayMode = screenModel.displayMode,
-                gridFocusRequester = gridFocusRequester,
                 snackbarHostState = snackbarHostState,
                 contentPadding = paddingValues,
                 onWebViewClick = onWebViewClick,
@@ -254,6 +263,7 @@ data class BrowseMangaSourceScreen(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                 },
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
 

@@ -3,6 +3,10 @@ package tachiyomi.presentation.core.components.material
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.pullToRefresh
@@ -11,6 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.LocalTvUiEnabled
+import tachiyomi.presentation.core.util.focusHighlight
 
 /**
  * @param refreshing Whether the layout is currently refreshing
@@ -29,12 +37,13 @@ fun PullRefresh(
     content: @Composable () -> Unit,
 ) {
     val state = rememberPullToRefreshState()
+    val showRefreshButton = LocalTvUiEnabled.current
     Box(
         modifier = modifier
             .pullToRefresh(
                 isRefreshing = refreshing,
                 state = state,
-                enabled = enabled,
+                enabled = shouldEnablePullRefreshGesture(enabled, showRefreshButton),
                 onRefresh = onRefresh,
             ),
     ) {
@@ -49,5 +58,26 @@ fun PullRefresh(
             containerColor = MaterialTheme.colorScheme.surfaceVariant,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        if (showRefreshButton) {
+            FilledTonalIconButton(
+                onClick = onRefresh,
+                enabled = enabled && !refreshing,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(indicatorPadding)
+                    .padding(16.dp)
+                    .focusHighlight(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = stringResource(MR.strings.action_webview_refresh),
+                )
+            }
+        }
     }
+}
+
+internal fun shouldEnablePullRefreshGesture(enabled: Boolean, isTelevision: Boolean): Boolean {
+    return enabled && !isTelevision
 }

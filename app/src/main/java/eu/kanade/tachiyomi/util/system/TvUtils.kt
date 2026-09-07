@@ -6,15 +6,16 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
+import eu.kanade.domain.ui.UiPreferences
+import eu.kanade.domain.ui.model.TvUiMode
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 fun isTvBox(context: Context): Boolean {
     val pm: PackageManager = context.packageManager
 
     // TV for sure
-    if (
-        context.getSystemService(UiModeManager::class.java)
-            .getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION
-    ) {
+    if (context.isTelevision()) {
         return true
     }
 
@@ -42,4 +43,34 @@ fun isTvBox(context: Context): Boolean {
 
     // Default: No TV - use SAF
     return false
+}
+
+/**
+ * Returns whether this is a real Android TV device.
+ *
+ * Keep this stricter than [isTvBox]: missing storage apps are useful for choosing a storage
+ * workflow, but are not enough evidence to replace touch interactions with D-pad interactions.
+ */
+fun Context.isTelevision(): Boolean {
+    val modeType = getSystemService(UiModeManager::class.java)?.currentModeType
+    return isTelevision(
+        uiModeType = modeType,
+        hasLeanbackFeature = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK),
+    )
+}
+
+internal fun isTelevision(uiModeType: Int?, hasLeanbackFeature: Boolean): Boolean {
+    return uiModeType == Configuration.UI_MODE_TYPE_TELEVISION || hasLeanbackFeature
+}
+
+/** UI policy is user-selectable; storage capability detection must remain independent. */
+fun Context.isTvUiEnabled(): Boolean = resolveTvUiMode(
+    mode = Injekt.get<UiPreferences>().tvUiMode().get(),
+    television = isTelevision(),
+)
+
+internal fun resolveTvUiMode(mode: TvUiMode, television: Boolean): Boolean = when (mode) {
+    TvUiMode.AUTOMATIC -> television
+    TvUiMode.ALWAYS -> true
+    TvUiMode.NEVER -> false
 }

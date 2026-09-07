@@ -237,7 +237,7 @@ class MainActivity : BaseActivity() {
                 // Nudge focus onto the newly shown screen's topmost focusable element. Retried
                 // a few times since the new screen's content may not be laid out yet on the
                 // first attempt (screen transition animation, subcomposition).
-                if (isTvUi()) {
+                if (isTvUi() && navigator.lastItem != HomeScreen) {
                     val focusManager = LocalFocusManager.current
                     LaunchedEffect(navigator.lastItem) {
                         repeat(5) { attempt ->

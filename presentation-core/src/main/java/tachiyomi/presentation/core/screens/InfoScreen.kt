@@ -1,6 +1,7 @@
 package tachiyomi.presentation.core.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -46,8 +51,13 @@ fun InfoScreen(
     rejectText: String? = null,
     onRejectClick: (() -> Unit)? = null,
     isTvUi: Boolean = false,
+    acceptFocusRequester: FocusRequester? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val defaultAcceptFocusRequester = remember { FocusRequester() }
+    val resolvedAcceptFocusRequester = acceptFocusRequester ?: defaultAcceptFocusRequester
+    val contentFocusRequester = remember { FocusRequester() }
+
     Scaffold(
         bottomBar = {
             val strokeWidth = Dp.Hairline
@@ -73,6 +83,8 @@ fun InfoScreen(
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(resolvedAcceptFocusRequester)
+                        .focusProperties { up = contentFocusRequester }
                         .tvFocusable(acceptInteractionSource, isTvUi),
                     interactionSource = acceptInteractionSource,
                     enabled = canAccept,
@@ -107,6 +119,17 @@ fun InfoScreen(
 
         Column(
             modifier = Modifier
+                .focusRequester(contentFocusRequester)
+                .focusProperties {
+                    exit = {
+                        if (it == FocusDirection.Down) {
+                            resolvedAcceptFocusRequester
+                        } else {
+                            FocusRequester.Default
+                        }
+                    }
+                }
+                .focusGroup()
                 .verticalScroll(rememberScrollState())
                 .fillMaxWidth()
                 .padding(paddingValues)

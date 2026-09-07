@@ -36,6 +36,7 @@ fun BottomRightPlayerControls(
     skipIntroButton: String?,
     onPressSkipIntroButton: () -> Unit,
     isPipAvailable: Boolean,
+    showAspectControl: Boolean,
     onAspectClick: () -> Unit,
     onPipClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -62,9 +63,13 @@ fun BottomRightPlayerControls(
             )
         }
 
-        ControlsButton(
-            Icons.Default.AspectRatio,
-            onClick = onAspectClick,
-        )
+        if (showAspectControl) {
+            ControlsButton(
+                Icons.Default.AspectRatio,
+                onClick = onAspectClick,
+            )
+        }
     }
 }
+
+internal fun shouldShowAspectControl(isTelevision: Boolean): Boolean = !isTelevision

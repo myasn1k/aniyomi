@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -48,12 +47,12 @@ fun BrowseSourceContent(
     displayMode: LibraryDisplayMode,
     snackbarHostState: SnackbarHostState,
     contentPadding: PaddingValues,
-    gridFocusRequester: FocusRequester = FocusRequester(),
     onWebViewClick: () -> Unit,
     onHelpClick: () -> Unit,
     onLocalSourceHelpClick: () -> Unit,
     onMangaClick: (Manga) -> Unit,
     onMangaLongClick: (Manga) -> Unit,
+    initialItemFocusRequester: FocusRequester? = null,
 ) {
     val context = LocalContext.current
 
@@ -124,33 +123,33 @@ fun BrowseSourceContent(
     when (displayMode) {
         LibraryDisplayMode.ComfortableGrid -> {
             BrowseMangaSourceComfortableGrid(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 mangaList = mangaList,
                 columns = columns,
                 contentPadding = contentPadding,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.List -> {
             BrowseMangaSourceList(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 mangaList = mangaList,
                 entries = entries,
                 topBarHeight = topBarHeight,
                 contentPadding = contentPadding,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
         LibraryDisplayMode.CompactGrid, LibraryDisplayMode.CoverOnlyGrid -> {
             BrowseMangaSourceCompactGrid(
-                modifier = Modifier.focusRequester(gridFocusRequester),
                 mangaList = mangaList,
                 columns = columns,
                 contentPadding = contentPadding,
                 onMangaClick = onMangaClick,
                 onMangaLongClick = onMangaLongClick,
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
     }

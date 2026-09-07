@@ -41,11 +41,13 @@ import `is`.xyz.mpv.Utils
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 import tachiyomi.presentation.core.util.tvFocusable
 import kotlin.math.abs
 
 @Composable
 fun MiddlePlayerControls(
+    playPauseFocusRequester: FocusRequester,
     // previous
     hasPrevious: Boolean,
     onSkipPrevious: () -> Unit,
@@ -91,12 +93,6 @@ fun MiddlePlayerControls(
         val icon = AnimatedImageVector.animatedVectorResource(R.drawable.anim_play_to_pause)
         val interaction = remember { MutableInteractionSource() }
         val isTv = isTvUi()
-        val playPauseFocusRequester = remember { FocusRequester() }
-        LaunchedEffect(controlsShown, isTv) {
-            if (isTv && controlsShown) {
-                playPauseFocusRequester.requestFocus()
-            }
-        }
         when {
             gestureSeekAmount != null -> {
                 Text(
@@ -121,14 +117,21 @@ fun MiddlePlayerControls(
                     enter = enter,
                     exit = exit,
                 ) {
+                    // Request only while the actual focus target is composed.
+                    // Loading and seek feedback replace this entire branch.
+                    LaunchedEffect(controlsShown, areControlsLocked, isLoading, isLoadingEpisode) {
+                        if (isTv && controlsShown && !areControlsLocked && !isLoading && !isLoadingEpisode) {
+                            playPauseFocusRequester.requestFocus()
+                        }
+                    }
                     Image(
                         painter = rememberAnimatedVectorPainter(icon, !paused),
                         modifier = Modifier
                             .size(96.dp)
+                            .focusRequester(playPauseFocusRequester)
                             .clip(CircleShape)
                             // focusRequester must precede the focusable target it drives (the
                             // one clickable() registers below), or requestFocus() is a no-op.
-                            .focusRequester(playPauseFocusRequester)
                             .clickable(
                                 interaction,
                                 ripple(),

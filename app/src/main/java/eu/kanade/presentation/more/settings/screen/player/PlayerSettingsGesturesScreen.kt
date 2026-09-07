@@ -16,10 +16,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.presentation.more.settings.screen.SearchableSettings
 import eu.kanade.tachiyomi.ui.player.SingleActionGesture
 import eu.kanade.tachiyomi.ui.player.settings.GesturePreferences
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableList
@@ -40,6 +42,7 @@ object PlayerSettingsGesturesScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
+        if (LocalContext.current.isTvUiEnabled()) return emptyList()
         val gesturePreferences = remember { Injekt.get<GesturePreferences>() }
 
         return listOf(
