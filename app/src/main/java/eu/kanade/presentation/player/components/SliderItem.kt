@@ -17,6 +17,7 @@
 
 package eu.kanade.presentation.player.components
 
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,12 +35,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.util.focusHighlight
+
+internal fun tvSliderDirection(keyCode: Int): Int? = when (keyCode) {
+    KeyEvent.KEYCODE_DPAD_LEFT -> -1
+    KeyEvent.KEYCODE_DPAD_RIGHT -> 1
+    else -> null
+}
+
+internal fun tvSliderStep(min: Float, max: Float, steps: Int): Float =
+    if (steps > 0) (max - min) / (steps + 1) else (max - min) / 100f
 
 @Composable
 fun SliderItem(
@@ -53,6 +67,7 @@ fun SliderItem(
     icon: @Composable () -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
+    val isTelevision = LocalContext.current.isTelevision()
 
     Row(
         modifier = modifier
@@ -82,7 +97,19 @@ fun SliderItem(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             },
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier
+                .weight(1.5f)
+                .focusHighlight()
+                .onPreviewKeyEvent { event ->
+                    if (!isTelevision) return@onPreviewKeyEvent false
+                    val direction = tvSliderDirection(event.nativeKeyEvent.keyCode)
+                        ?: return@onPreviewKeyEvent false
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        onChange((value + direction).coerceIn(min, max))
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    true
+                },
             valueRange = min.toFloat()..max.toFloat(),
             steps = max - min,
         )
@@ -102,6 +129,7 @@ fun SliderItem(
     icon: @Composable () -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
+    val isTelevision = LocalContext.current.isTelevision()
 
     Row(
         modifier = modifier
@@ -131,7 +159,20 @@ fun SliderItem(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             },
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier
+                .weight(1.5f)
+                .focusHighlight()
+                .onPreviewKeyEvent { event ->
+                    if (!isTelevision) return@onPreviewKeyEvent false
+                    val direction = tvSliderDirection(event.nativeKeyEvent.keyCode)
+                        ?: return@onPreviewKeyEvent false
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        val step = tvSliderStep(min, max, steps)
+                        onChange((value + direction * step).coerceIn(min, max))
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    true
+                },
             valueRange = min..max,
             steps = steps,
         )

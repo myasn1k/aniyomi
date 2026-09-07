@@ -6,8 +6,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
 import tachiyomi.presentation.core.components.SettingsChipRow
@@ -31,6 +33,7 @@ private val flashColors = listOf(
 
 @Composable
 internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
+    val isTelevision = LocalContext.current.isTelevision()
     val readerTheme by screenModel.preferences.readerTheme().collectAsState()
 
     val flashPageState by screenModel.preferences.flashOnPageChange().collectAsState()
@@ -59,12 +62,14 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
         pref = screenModel.preferences.showPageNumber(),
     )
 
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_fullscreen),
-        pref = screenModel.preferences.fullscreen(),
-    )
+    if (!isTelevision) {
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_fullscreen),
+            pref = screenModel.preferences.fullscreen(),
+        )
+    }
 
-    if (screenModel.hasDisplayCutout && screenModel.preferences.fullscreen().get()) {
+    if (!isTelevision && screenModel.hasDisplayCutout && screenModel.preferences.fullscreen().get()) {
         CheckboxItem(
             label = stringResource(MR.strings.pref_cutout_short),
             pref = screenModel.preferences.cutoutShort(),
@@ -76,10 +81,12 @@ internal fun ColumnScope.GeneralPage(screenModel: ReaderSettingsScreenModel) {
         pref = screenModel.preferences.keepScreenOn(),
     )
 
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_read_with_long_tap),
-        pref = screenModel.preferences.readWithLongTap(),
-    )
+    if (!isTelevision) {
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_read_with_long_tap),
+            pref = screenModel.preferences.readWithLongTap(),
+        )
+    }
 
     CheckboxItem(
         label = stringResource(MR.strings.pref_always_show_chapter_transition),

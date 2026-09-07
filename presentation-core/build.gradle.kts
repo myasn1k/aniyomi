@@ -45,4 +45,6 @@ dependencies {
     implementation(androidx.paging.runtime)
     implementation(androidx.paging.compose)
     implementation(kotlinx.immutables)
+
+    testImplementation(libs.bundles.test)
 }

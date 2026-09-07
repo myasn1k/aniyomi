@@ -115,7 +115,13 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
         setVo(if (decoderPreferences.gpuNext().get()) "gpu-next" else "gpu")
         MPVLib.setPropertyBoolean("pause", true)
         MPVLib.setOptionString("profile", "fast")
-        MPVLib.setOptionString("hwdec", if (decoderPreferences.tryHWDecoding().get()) "auto" else "no")
+        MPVLib.setOptionString(
+            "hwdec",
+            initialHardwareDecoder(
+                tryHardwareDecoding = decoderPreferences.tryHWDecoding().get(),
+                hardware = Build.HARDWARE,
+            ),
+        )
         when (decoderPreferences.videoDebanding().get()) {
             Debanding.None -> {}
             Debanding.CPU -> MPVLib.setOptionString("vf", "gradfun=radius=12")
@@ -286,5 +292,21 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
         MPVLib.setOptionString("sub-shadow-offset", subtitlePreferences.shadowOffsetSubtitles().get().toString())
         MPVLib.setOptionString("sub-pos", subtitlePreferences.subtitlePos().get().toString())
         MPVLib.setOptionString("sub-scale", subtitlePreferences.subtitleFontScale().get().toString())
+    }
+}
+
+internal fun initialHardwareDecoder(
+    tryHardwareDecoding: Boolean,
+    hardware: String,
+): String {
+    if (!tryHardwareDecoding) return "no"
+
+    // Direct MediaCodec surfaces can render solid green frames on Android emulators,
+    // especially when mpv also needs to run a CPU video filter. Copy mode keeps
+    // hardware decoding while exposing ordinary frames to the rest of the pipeline.
+    return if (hardware.equals("goldfish", ignoreCase = true) || hardware.equals("ranchu", ignoreCase = true)) {
+        "auto-copy"
+    } else {
+        "auto"
     }
 }

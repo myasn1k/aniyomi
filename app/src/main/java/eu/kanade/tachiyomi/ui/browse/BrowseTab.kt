@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.navigator.Navigator
@@ -26,6 +28,7 @@ import eu.kanade.tachiyomi.ui.browse.manga.extension.mangaExtensionsTab
 import eu.kanade.tachiyomi.ui.browse.manga.migration.sources.migrateMangaSourceTab
 import eu.kanade.tachiyomi.ui.browse.manga.source.mangaSourcesTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
@@ -84,20 +87,29 @@ data object BrowseTab : Tab {
         )
 
         val state = rememberPagerState { tabs.size }
+        val tvPage = rememberSaveable { mutableStateOf(0) }
+        val isTelevision = context.isTelevision()
 
         TabbedScreen(
             titleRes = MR.strings.browse,
             tabs = tabs,
             state = state,
+            tvPage = tvPage,
             mangaSearchQuery = mangaExtensionsState.searchQuery,
             onChangeMangaSearchQuery = mangaExtensionsScreenModel::search,
             animeSearchQuery = animeExtensionsState.searchQuery,
             onChangeAnimeSearchQuery = animeExtensionsScreenModel::search,
             scrollable = true,
         )
-        LaunchedEffect(Unit) {
+        LaunchedEffect(isTelevision) {
             switchToTabNumberChannel.receiveAsFlow()
-                .collectLatest { state.scrollToPage(it) }
+                .collectLatest {
+                    if (isTelevision) {
+                        tvPage.value = it
+                    } else {
+                        state.scrollToPage(it)
+                    }
+                }
         }
 
         LaunchedEffect(Unit) {

@@ -6,12 +6,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.graphics.alpha
 import androidx.core.graphics.blue
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences.Companion.ColorFilterMode
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderSettingsScreenModel
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.core.common.preference.getAndSet
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.CheckboxItem
@@ -22,11 +24,14 @@ import tachiyomi.presentation.core.util.collectAsState
 
 @Composable
 internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel) {
+    val isTelevision = LocalContext.current.isTelevision()
     val customBrightness by screenModel.preferences.customBrightness().collectAsState()
-    CheckboxItem(
-        label = stringResource(MR.strings.pref_custom_brightness),
-        pref = screenModel.preferences.customBrightness(),
-    )
+    if (!isTelevision) {
+        CheckboxItem(
+            label = stringResource(MR.strings.pref_custom_brightness),
+            pref = screenModel.preferences.customBrightness(),
+        )
+    }
 
     /**
      * Sets the brightness of the screen. Range is [-75, 100].
@@ -34,7 +39,7 @@ internal fun ColumnScope.ColorFilterPage(screenModel: ReaderSettingsScreenModel)
      * From 1 to 100 it sets that value as brightness.
      * 0 sets system brightness and hides the overlay.
      */
-    if (customBrightness) {
+    if (!isTelevision && customBrightness) {
         val customBrightnessValue by screenModel.preferences.customBrightnessValue().collectAsState()
         SliderItem(
             value = customBrightnessValue,

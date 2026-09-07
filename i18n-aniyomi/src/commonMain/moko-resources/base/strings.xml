@@ -42,9 +42,11 @@
     <string name="label_player">Player</string>
     <string name="action_search_player_settings">Search player settings</string>
     <string name="pref_player_settings_summary">Internal player, gestures, decoders, subtitles</string>
+    <string name="pref_player_settings_summary_tv">Internal player, decoders, subtitles</string>
     <!-- Player settings - internal player -->
     <string name="pref_player_internal">Internal player</string>
     <string name="pref_player_internal_summary">Progress, controls, orientation</string>
+    <string name="pref_player_internal_summary_tv">Progress and playback controls</string>
     <string name="pref_progress_mark_as_seen">At what point to mark the episode as seen</string>
     <string name="pref_progress_70" translatable="false">70%</string>
     <string name="pref_progress_75" translatable="false">75%</string>
@@ -390,7 +392,12 @@
     <string name="torrserver_disabled">TorrServer is not running</string>
     <string name="torrentserver_is_running">Torrent Server is running</string>
     <string name="pref_category_torrentserver">Torrent Server Preferences</string>
+    <!-- Http Server Service -->
+    <string name="pref_http_server_name">Http server</string>
+    <string name="http_server_is_running">Http server is running</string>
+    <string name="http_server_start_failure">Failed to start http server</string>
     <!-- Other -->
+    <string name="upcoming">Upcoming</string>
     <string name="download_notifier_download_finish">Download completed</string>
     <string name="action_hide">Hide</string>
     <string name="label_all">All</string>

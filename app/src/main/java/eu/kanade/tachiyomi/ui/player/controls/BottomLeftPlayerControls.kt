@@ -41,6 +41,7 @@ import uy.kohesive.injekt.api.get
 
 @Composable
 fun BottomLeftPlayerControls(
+    showMobileControls: Boolean,
     playbackSpeed: Float,
     currentChapter: Segment?,
     onLockControls: () -> Unit,
@@ -55,14 +56,16 @@ fun BottomLeftPlayerControls(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ControlsButton(
-            Icons.Default.LockOpen,
-            onClick = onLockControls,
-        )
-        ControlsButton(
-            icon = Icons.Default.ScreenRotation,
-            onClick = onCycleRotation,
-        )
+        if (showMobileControls) {
+            ControlsButton(
+                Icons.Default.LockOpen,
+                onClick = onLockControls,
+            )
+            ControlsButton(
+                icon = Icons.Default.ScreenRotation,
+                onClick = onCycleRotation,
+            )
+        }
         ControlsButton(
             text = stringResource(AYMR.strings.player_speed, playbackSpeed),
             onClick = {

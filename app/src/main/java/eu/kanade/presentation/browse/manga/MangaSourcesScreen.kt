@@ -17,13 +17,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.browse.manga.components.BaseMangaSourceItem
 import eu.kanade.tachiyomi.ui.browse.manga.source.MangaSourcesScreenModel
 import eu.kanade.tachiyomi.ui.browse.manga.source.browse.BrowseMangaSourceScreenModel.Listing
 import eu.kanade.tachiyomi.util.system.LocaleHelper
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.domain.source.manga.model.Pin
 import tachiyomi.domain.source.manga.model.Source
 import tachiyomi.i18n.MR
@@ -36,6 +41,7 @@ import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.screens.EmptyScreen
 import tachiyomi.presentation.core.screens.LoadingScreen
 import tachiyomi.presentation.core.theme.header
+import tachiyomi.presentation.core.util.focusHighlight
 import tachiyomi.presentation.core.util.plus
 import tachiyomi.source.local.entries.manga.LocalMangaSource
 
@@ -175,6 +181,11 @@ fun MangaSourceOptionsDialog(
     // SY <--
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val firstActionFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(firstActionFocusRequester) {
+        if (context.isTelevision()) firstActionFocusRequester.requestFocus()
+    }
     AlertDialog(
         title = {
             Text(text = source.visualName)
@@ -185,6 +196,8 @@ fun MangaSourceOptionsDialog(
                 Text(
                     text = stringResource(textId),
                     modifier = Modifier
+                        .focusRequester(firstActionFocusRequester)
+                        .focusHighlight()
                         .clickable(onClick = onClickPin)
                         .fillMaxWidth()
                         .padding(vertical = 16.dp),
@@ -193,6 +206,7 @@ fun MangaSourceOptionsDialog(
                     Text(
                         text = stringResource(MR.strings.action_disable),
                         modifier = Modifier
+                            .focusHighlight()
                             .clickable(onClick = onClickDisable)
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),
@@ -207,6 +221,7 @@ fun MangaSourceOptionsDialog(
                             stringResource(AYMR.strings.data_saver_exclude)
                         },
                         modifier = Modifier
+                            .focusHighlight()
                             .clickable(onClick = onClickToggleDataSaver)
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),

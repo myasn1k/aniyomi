@@ -17,6 +17,7 @@
 
 package eu.kanade.presentation.player.components
 
+import android.view.KeyEvent
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -31,7 +32,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.collections.immutable.ImmutableList
+import tachiyomi.presentation.core.util.focusHighlight
 
 @Composable
 fun ExposedTextDropDownMenu(
@@ -43,6 +50,8 @@ fun ExposedTextDropDownMenu(
     leadingIcon: (@Composable () -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val isTelevision = LocalContext.current.isTelevision()
+    val focusManager = LocalFocusManager.current
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -61,6 +70,19 @@ fun ExposedTextDropDownMenu(
             colors = OutlinedTextFieldDefaults.colors(),
             modifier = Modifier
                 .menuAnchor(MenuAnchorType.PrimaryEditable)
+                .focusHighlight()
+                .onPreviewKeyEvent { event ->
+                    if (!isTelevision || expanded || event.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) {
+                        return@onPreviewKeyEvent false
+                    }
+                    val direction = when (event.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_UP -> FocusDirection.Up
+                        KeyEvent.KEYCODE_DPAD_DOWN -> FocusDirection.Down
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    focusManager.moveFocus(direction)
+                    true
+                }
                 .fillMaxWidth(),
         )
 

@@ -43,6 +43,7 @@ import eu.kanade.tachiyomi.ui.player.controls.LocalPlayerButtonsClickEvent
 import tachiyomi.presentation.core.components.material.Button
 import tachiyomi.presentation.core.components.material.DISABLED_ALPHA
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.util.focusHighlight
 
 @Composable
 fun ControlsButton(
@@ -62,6 +63,7 @@ fun ControlsButton(
 
     Box(
         modifier = modifier
+            .focusHighlight()
             .combinedClickable(
                 enabled = enabled,
                 onClick = {
@@ -104,6 +106,7 @@ fun ControlsButton(
     val clickEvent = LocalPlayerButtonsClickEvent.current
     Box(
         modifier = modifier
+            .focusHighlight()
             .combinedClickable(
                 onClick = {
                     clickEvent()
@@ -139,25 +142,18 @@ fun FilledControlsButton(
     val interactionSource = remember { MutableInteractionSource() }
     val clickEvent = LocalPlayerButtonsClickEvent.current
 
-    Box(
-        modifier = modifier.padding(end = MaterialTheme.padding.small),
+    Button(
+        onClick = {
+            clickEvent()
+            onClick()
+        },
+        onLongClick = onLongClick,
+        interactionSource = interactionSource,
+        modifier = modifier
+            .focusHighlight()
+            .padding(end = MaterialTheme.padding.small),
     ) {
-        Button(onClick = {}) {
-            Text(text = text)
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .combinedClickable(
-                    onClick = {
-                        clickEvent()
-                        onClick()
-                    },
-                    onLongClick = onLongClick,
-                    interactionSource = interactionSource,
-                    indication = null,
-                ),
-        )
+        Text(text = text)
     }
 }
 

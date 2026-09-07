@@ -3,9 +3,11 @@ package eu.kanade.presentation.theme
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RippleConfiguration
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +33,7 @@ import eu.kanade.presentation.theme.colorscheme.TealTurqoiseColorScheme
 import eu.kanade.presentation.theme.colorscheme.TidalWaveColorScheme
 import eu.kanade.presentation.theme.colorscheme.YinYangColorScheme
 import eu.kanade.presentation.theme.colorscheme.YotsubaColorScheme
+import eu.kanade.tachiyomi.util.system.isTelevision
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -61,11 +64,29 @@ private fun BaseTachiyomiTheme(
     isAmoled: Boolean,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = getThemeColorScheme(appTheme, isAmoled),
-        content = content,
-    )
+    val context = LocalContext.current
+    MaterialTheme(colorScheme = getThemeColorScheme(appTheme, isAmoled)) {
+        if (context.isTelevision()) {
+            CompositionLocalProvider(
+                LocalRippleConfiguration provides tvFocusRippleConfiguration,
+                content = content,
+            )
+        } else {
+            content()
+        }
+    }
 }
+
+private val tvFocusRippleConfiguration
+    @Composable get() = RippleConfiguration(
+        color = MaterialTheme.colorScheme.onSurface,
+        rippleAlpha = RippleAlpha(
+            draggedAlpha = 0.18f,
+            focusedAlpha = 0.38f,
+            hoveredAlpha = 0.22f,
+            pressedAlpha = 0.24f,
+        ),
+    )
 
 @Composable
 @ReadOnlyComposable

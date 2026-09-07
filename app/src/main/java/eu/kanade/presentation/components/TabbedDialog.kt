@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,9 +26,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 import tachiyomi.i18n.MR
@@ -50,11 +55,16 @@ fun TabbedDialog(
     pagerState: PagerState = rememberPagerState { tabTitles.size },
     content: @Composable (Int) -> Unit,
 ) {
+    val isTelevision = LocalContext.current.isTelevision()
+    val initialFocusRequester = remember { FocusRequester() }
     AdaptiveSheet(
         modifier = modifier,
         onDismissRequest = onDismissRequest,
     ) {
         val scope = rememberCoroutineScope()
+        LaunchedEffect(isTelevision) {
+            if (isTelevision) initialFocusRequester.requestFocus()
+        }
 
         Column {
             Row {
@@ -66,6 +76,11 @@ fun TabbedDialog(
                 ) {
                     tabTitles.fastForEachIndexed { index, tab ->
                         Tab(
+                            modifier = if (isTelevision && index == 0) {
+                                Modifier.focusRequester(initialFocusRequester)
+                            } else {
+                                Modifier
+                            },
                             selected = pagerState.currentPage == index,
                             onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
                             text = { TabText(text = tab) },

@@ -64,6 +64,7 @@ import com.hippo.unifile.UniFile
 import eu.kanade.presentation.theme.TachiyomiTheme
 import eu.kanade.tachiyomi.animesource.model.ChapterType
 import eu.kanade.tachiyomi.animesource.model.Hoster
+import eu.kanade.tachiyomi.animesource.model.HttpServer
 import eu.kanade.tachiyomi.animesource.model.SerializableHoster.Companion.serialize
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
@@ -111,6 +112,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.time.Duration.Companion.seconds
 
 class PlayerActivity : BaseActivity() {
     private val viewModel by viewModels<PlayerViewModel>(factoryProducer = { PlayerViewModelProviderFactory(this) })
@@ -142,6 +144,7 @@ class PlayerActivity : BaseActivity() {
     }
 
     private var pipReceiver: BroadcastReceiver? = null
+    private var httpServer: HttpServer? = null
 
     private val noisyReceiver = object : BroadcastReceiver() {
         var initialized = false
@@ -268,6 +271,7 @@ class PlayerActivity : BaseActivity() {
             TachiyomiTheme {
                 PlayerControls(
                     viewModel = viewModel,
+                    isTelevision = isTelevision(),
                     onBackPress = {
                         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
                             enterPictureInPictureMode(createPipParams())
@@ -296,6 +300,9 @@ class PlayerActivity : BaseActivity() {
     override fun onDestroy() {
         player.isExiting = true
 
+        httpServer?.stop()
+        httpServer = null
+
         audioFocusRequest?.let {
             AudioManagerCompat.abandonAudioFocusRequest(audioManager, it)
         }
@@ -314,7 +321,6 @@ class PlayerActivity : BaseActivity() {
         MPVLib.removeLogObserver(playerObserver)
         MPVLib.removeObserver(playerObserver)
         player.destroy()
-        viewModel.stopHttpServer()
 
         super.onDestroy()
     }
@@ -858,7 +864,14 @@ class PlayerActivity : BaseActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (isTelevision()) {
-            val action = tvRemoteAction(keyCode, viewModel.controlsShown.value)
+            val modalOverlayShown = viewModel.sheetShown.value != Sheets.None ||
+                viewModel.panelShown.value != Panels.None ||
+                viewModel.dialogShown.value != Dialogs.None
+            val action = tvRemoteAction(
+                keyCode = keyCode,
+                controlsShown = viewModel.controlsShown.value,
+                modalOverlayShown = modalOverlayShown,
+            )
             if (action != null) {
                 consumedTvKeyDown = keyCode
                 when (action) {
@@ -884,6 +897,7 @@ class PlayerActivity : BaseActivity() {
                 }
                 return true
             }
+            if (isTvNavigationKey(keyCode)) return super.onKeyDown(keyCode, event)
         }
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
@@ -915,6 +929,9 @@ class PlayerActivity : BaseActivity() {
         if (shouldConsumeTvKeyUp(consumedTvKeyDown, keyCode)) {
             consumedTvKeyDown = null
             return true
+        }
+        if (isTelevision() && isTvNavigationKey(keyCode)) {
+            return super.onKeyUp(keyCode, event)
         }
         if (player.onKey(event!!)) return true
         return super.onKeyUp(keyCode, event)
@@ -1101,6 +1118,8 @@ class PlayerActivity : BaseActivity() {
     fun setVideo(video: Video?, position: Long? = null) {
         if (player.isExiting) return
         if (video == null) return
+        httpServer?.stop()
+        httpServer = null
 
         setHttpOptions(video)
 
@@ -1137,15 +1156,37 @@ class PlayerActivity : BaseActivity() {
                 torrentLinkHandler(video.videoUrl, video.videoTitle, videoOptions)
             }
         } else {
-            MPVLib.command(
-                arrayOf(
-                    "loadfile",
-                    parseVideoUrl(video.videoUrl),
-                    "replace",
-                    "0",
-                    videoOptions,
-                ),
-            )
+            launchIO {
+                val httpSource = viewModel.currentSource.value as? AnimeHttpSource
+                var videoUrl: String = video.videoUrl
+                if (video.usesHttpServer() && httpSource != null) {
+                    val port = try {
+                        httpServer = httpSource.createHttpServer()
+                        httpServer?.start()
+                        httpServer?.listeningPort ?: 0
+                    } catch (e: Exception) {
+                        logcat(LogPriority.ERROR, e) { "Failed to start http server" }
+                        launchUI {
+                            toast(AYMR.strings.http_server_start_failure)
+                        }
+                        return@launchIO
+                    }
+
+                    val newVideo = video.copyHttpServer(port)
+                    videoUrl = newVideo.videoUrl
+                    viewModel.updateVideo(newVideo)
+                }
+
+                MPVLib.command(
+                    arrayOf(
+                        "loadfile",
+                        parseVideoUrl(videoUrl),
+                        "replace",
+                        "0",
+                        videoOptions,
+                    ),
+                )
+            }
         }
     }
 

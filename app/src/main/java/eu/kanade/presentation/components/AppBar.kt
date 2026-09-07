@@ -213,6 +213,7 @@ fun AppBarTitle(
 @Composable
 fun AppBarActions(
     actions: ImmutableList<AppBar.AppBarAction>,
+    actionModifier: Modifier = Modifier,
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
@@ -229,6 +230,7 @@ fun AppBarActions(
             IconButton(
                 onClick = it.onClick,
                 enabled = it.enabled,
+                modifier = actionModifier,
             ) {
                 Icon(
                     imageVector = it.icon,
@@ -252,6 +254,7 @@ fun AppBarActions(
         ) {
             IconButton(
                 onClick = { showMenu = !showMenu },
+                modifier = actionModifier,
             ) {
                 Icon(
                     Icons.Outlined.MoreVert,

@@ -3,6 +3,10 @@ package eu.kanade.presentation.more.onboarding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import eu.kanade.domain.ui.UiPreferences
 import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.presentation.more.settings.widget.AppThemeModePreferenceWidget
@@ -11,7 +15,9 @@ import tachiyomi.presentation.core.util.collectAsState
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
-internal class ThemeStep : OnboardingStep {
+internal class ThemeStep(
+    private val acceptFocusRequester: FocusRequester,
+) : OnboardingStep {
 
     override val isComplete: Boolean = true
 
@@ -38,6 +44,15 @@ internal class ThemeStep : OnboardingStep {
             )
 
             AppThemePreferenceWidget(
+                modifier = Modifier.focusProperties {
+                    exit = {
+                        if (it == FocusDirection.Down) {
+                            acceptFocusRequester
+                        } else {
+                            FocusRequester.Default
+                        }
+                    }
+                },
                 value = appTheme,
                 amoled = amoled,
                 onItemClick = { appThemePref.set(it) },
