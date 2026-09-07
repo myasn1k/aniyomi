@@ -1,5 +1,7 @@
 package tachiyomi.presentation.core.util
 
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,12 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
@@ -29,14 +35,28 @@ import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 fun Modifier.focusHighlight(): Modifier = composed {
     var isFocused by remember { mutableStateOf(false) }
     val color = MaterialTheme.colorScheme.primary
+    val configuration = LocalConfiguration.current
+    val context = LocalContext.current
+    val isTelevision = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK ==
+        Configuration.UI_MODE_TYPE_TELEVISION ||
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
     Modifier
         .onFocusChanged { isFocused = it.isFocused }
-        .drawBehind {
+        .drawWithContent {
             if (isFocused) {
-                drawRect(color.copy(alpha = 0.18f))
-                drawRect(
-                    color = color,
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx()),
+                drawRoundRect(
+                    color.copy(alpha = if (isTelevision) 0.34f else 0.18f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
+                )
+            }
+            drawContent()
+            if (isFocused) {
+                drawRoundRect(
+                    color = if (isTelevision) Color.White else color,
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = (if (isTelevision) 6.dp else 3.dp).toPx(),
+                    ),
                 )
             }
         }

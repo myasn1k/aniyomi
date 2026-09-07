@@ -29,6 +29,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -131,6 +133,8 @@ data class BrowseMangaSourceScreen(
 
         var topBarHeight by remember { mutableIntStateOf(0) }
         val isTv = isTvBox(LocalContext.current)
+        val initialItemFocusRequester = remember { FocusRequester() }
+        val mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems()
         Scaffold(
             topBar = {
                 Column(
@@ -158,6 +162,9 @@ data class BrowseMangaSourceScreen(
                         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
                     ) {
                         FilterChip(
+                            modifier = Modifier.focusProperties {
+                                if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                            },
                             selected = state.listing == Listing.Popular,
                             onClick = {
                                 screenModel.resetFilters()
@@ -177,6 +184,9 @@ data class BrowseMangaSourceScreen(
                         )
                         if ((screenModel.source as CatalogueSource).supportsLatest) {
                             FilterChip(
+                                modifier = Modifier.focusProperties {
+                                    if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                                },
                                 selected = state.listing == Listing.Latest,
                                 onClick = {
                                     screenModel.resetFilters()
@@ -197,6 +207,9 @@ data class BrowseMangaSourceScreen(
                         }
                         if (state.filters.isNotEmpty()) {
                             FilterChip(
+                                modifier = Modifier.focusProperties {
+                                    if (isTv && mangaList.itemCount > 0) down = initialItemFocusRequester
+                                },
                                 selected = state.listing is Listing.Search,
                                 onClick = screenModel::openFilterSheet,
                                 leadingIcon = {
@@ -221,7 +234,7 @@ data class BrowseMangaSourceScreen(
         ) { paddingValues ->
             BrowseSourceContent(
                 source = screenModel.source,
-                mangaList = screenModel.mangaPagerFlowFlow.collectAsLazyPagingItems(),
+                mangaList = mangaList,
                 columns = screenModel.getColumnsPreference(LocalConfiguration.current.orientation),
                 entries = screenModel.getColumnsPreferenceForCurrentOrientation(LocalConfiguration.current.orientation),
                 topBarHeight = topBarHeight,
@@ -250,6 +263,7 @@ data class BrowseMangaSourceScreen(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                 },
+                initialItemFocusRequester = initialItemFocusRequester,
             )
         }
 

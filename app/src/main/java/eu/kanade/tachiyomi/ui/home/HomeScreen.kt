@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,8 +25,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,6 +54,7 @@ import eu.kanade.tachiyomi.ui.library.anime.AnimeLibraryTab
 import eu.kanade.tachiyomi.ui.library.manga.MangaLibraryTab
 import eu.kanade.tachiyomi.ui.more.MoreTab
 import eu.kanade.tachiyomi.ui.updates.UpdatesTab
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -86,6 +94,17 @@ object HomeScreen : Screen() {
             tab = defaultTab,
             key = TAB_NAVIGATOR_KEY,
         ) { tabNavigator ->
+            val context = LocalContext.current
+            val useTvRail = context.isTelevision() && isTabletUi()
+            val navigationFocusTab = navStyle.tabs.firstOrNull { it::class == tabNavigator.current::class }
+                ?: navStyle.tabs.first()
+            val navigationFocusRequester = remember { FocusRequester() }
+            val contentFocusRequester = remember { FocusRequester() }
+            LaunchedEffect(useTvRail) {
+                if (useTvRail) {
+                    navigationFocusRequester.requestFocus()
+                }
+            }
             // Provide usable navigator to content screen
             CompositionLocalProvider(LocalNavigator provides navigator) {
                 Scaffold(
@@ -93,7 +112,20 @@ object HomeScreen : Screen() {
                         if (isTabletUi()) {
                             NavigationRail {
                                 navStyle.tabs.fastForEach {
-                                    NavigationRailItem(it)
+                                    NavigationRailItem(
+                                        tab = it,
+                                        modifier = Modifier
+                                            .then(
+                                                if (navigationFocusTab::class == it::class) {
+                                                    Modifier.focusRequester(navigationFocusRequester)
+                                                } else {
+                                                    Modifier
+                                                },
+                                            )
+                                            .focusProperties {
+                                                if (useTvRail) right = contentFocusRequester
+                                            },
+                                    )
                                 }
                             }
                         }
@@ -121,7 +153,12 @@ object HomeScreen : Screen() {
                     Box(
                         modifier = Modifier
                             .padding(contentPadding)
-                            .consumeWindowInsets(contentPadding),
+                            .consumeWindowInsets(contentPadding)
+                            .focusRequester(contentFocusRequester)
+                            .focusProperties {
+                                exit = { tvContentExitDestination(it, navigationFocusRequester, useTvRail) }
+                            }
+                            .focusGroup(),
                     ) {
                         AnimatedContent(
                             targetState = tabNavigator.current,
@@ -230,12 +267,16 @@ object HomeScreen : Screen() {
     }
 
     @Composable
-    fun NavigationRailItem(tab: eu.kanade.presentation.util.Tab) {
+    fun NavigationRailItem(
+        tab: eu.kanade.presentation.util.Tab,
+        modifier: Modifier = Modifier,
+    ) {
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val selected = tabNavigator.current::class == tab::class
         NavigationRailItem(
+            modifier = modifier,
             selected = selected,
             onClick = {
                 if (!selected) {
@@ -339,5 +380,17 @@ object HomeScreen : Screen() {
         data object History : Tab
         data class Browse(val toExtensions: Boolean = false, val anime: Boolean = false) : Tab
         data class More(val toDownloads: Boolean) : Tab
+    }
+}
+
+internal fun tvContentExitDestination(
+    direction: FocusDirection,
+    navigationFocusRequester: FocusRequester,
+    navigationRailAvailable: Boolean = true,
+): FocusRequester {
+    return if (navigationRailAvailable && direction == FocusDirection.Left) {
+        navigationFocusRequester
+    } else {
+        FocusRequester.Default
     }
 }

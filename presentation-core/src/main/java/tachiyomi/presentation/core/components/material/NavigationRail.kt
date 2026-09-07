@@ -1,5 +1,6 @@
 package tachiyomi.presentation.core.components.material
 
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -46,6 +47,7 @@ fun NavigationRail(
                 .windowInsetsPadding(windowInsets)
                 .widthIn(min = 80.dp)
                 .padding(vertical = MaterialTheme.padding.extraSmall)
+                .focusGroup()
                 .selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(

@@ -58,6 +58,7 @@ import uy.kohesive.injekt.api.fullType
 
 @Composable
 internal fun AppThemePreferenceWidget(
+    modifier: Modifier = Modifier,
     value: AppTheme,
     amoled: Boolean,
     onItemClick: (AppTheme) -> Unit,
@@ -65,6 +66,7 @@ internal fun AppThemePreferenceWidget(
     BasePreferenceWidget(
         subcomponent = {
             AppThemesList(
+                modifier = modifier,
                 currentTheme = value,
                 amoled = amoled,
                 onItemClick = onItemClick,
@@ -75,6 +77,7 @@ internal fun AppThemePreferenceWidget(
 
 @Composable
 private fun AppThemesList(
+    modifier: Modifier = Modifier,
     currentTheme: AppTheme,
     amoled: Boolean,
     onItemClick: (AppTheme) -> Unit,
@@ -85,6 +88,7 @@ private fun AppThemesList(
             .filterNot { it.titleRes == null || (it == AppTheme.MONET && !DeviceUtil.isDynamicColorAvailable) }
     }
     LazyRow(
+        modifier = modifier,
         contentPadding = PaddingValues(horizontal = PrefsHorizontalPadding),
         horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
     ) {
