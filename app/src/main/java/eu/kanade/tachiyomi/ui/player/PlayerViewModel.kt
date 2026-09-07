@@ -1103,15 +1103,6 @@ class PlayerViewModel @JvmOverloads constructor(
         }
     }
 
-    fun stopHttpServer() {
-        val server = (currentSource.value as? AnimeHttpSource)?.server
-            ?: return
-
-        if (server.isRunning()) {
-            server.stop()
-        }
-    }
-
     // ====== OLD ======
 
     private val eventChannel = Channel<Event>()
@@ -1440,14 +1431,19 @@ class PlayerViewModel @JvmOverloads constructor(
                     }.awaitAll()
 
                     if (hasFoundPreferredVideo.compareAndSet(false, true)) {
-                        val (hosterIdx, videoIdx) = HosterLoader.selectBestVideo(hosterState.value)
-                        if (hosterIdx == -1) {
-                            throw ExceptionWithStringResource("No available videos", AYMR.strings.no_available_videos)
+                        if (selectedHosterVideoIndex.value == Pair(-1, -1)) {
+                            val (hosterIdx, videoIdx) = HosterLoader.selectBestVideo(hosterState.value)
+                            if (hosterIdx == -1) {
+                                throw ExceptionWithStringResource(
+                                    "No available videos",
+                                    AYMR.strings.no_available_videos,
+                                )
+                            }
+
+                            val video = (hosterState.value[hosterIdx] as HosterState.Ready).videoList[videoIdx]
+
+                            loadVideo(source, video, hosterIdx, videoIdx)
                         }
-
-                        val video = (hosterState.value[hosterIdx] as HosterState.Ready).videoList[videoIdx]
-
-                        loadVideo(source, video, hosterIdx, videoIdx)
                     }
                 }
             } catch (e: CancellationException) {
@@ -1527,6 +1523,10 @@ class PlayerViewModel @JvmOverloads constructor(
 
         activity.setVideo(resolvedVideo)
         return true
+    }
+
+    fun updateVideo(video: Video) {
+        _currentVideo.update { _ -> video }
     }
 
     fun onVideoClicked(hosterIndex: Int, videoIndex: Int) {
@@ -2020,7 +2020,8 @@ class PlayerViewModel @JvmOverloads constructor(
             "${anime.title} - ${episode.name}".takeBytes(
                 DiskUtil.MAX_FILE_NAME_BYTES - filenameSuffix.byteSize(),
             ),
-        ) + filenameSuffix
+        ) +
+            filenameSuffix
     }
 
     /**

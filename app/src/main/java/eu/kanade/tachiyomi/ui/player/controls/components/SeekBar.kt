@@ -76,10 +76,23 @@ data class IndexedSegment(
     fun toSegment(): Segment = Segment(name, start, color)
 }
 
+internal fun seekBarDisplayPosition(
+    playerPosition: Float,
+    gestureSeekPosition: Float,
+    internalSeekPosition: Float,
+    isGestureSeeking: Boolean,
+    isSeeking: Boolean,
+): Float = when {
+    isGestureSeeking -> gestureSeekPosition
+    isSeeking -> internalSeekPosition
+    else -> playerPosition
+}
+
 @Composable
 fun SeekbarWithTimers(
     playerPosition: Float,
     seekPosition: Float,
+    isGestureSeeking: Boolean,
     isSeeking: Boolean,
     duration: Float,
     readAheadValue: Float,
@@ -95,11 +108,17 @@ fun SeekbarWithTimers(
     // play button is not: loading and seek feedback can replace it at any time.
     val escapeFocusRequester = remember { FocusRequester() }
     val isTelevision = LocalContext.current.isTelevision()
-    val position = if (isSeeking) seekPosition else playerPosition
-    var remoteSeekPosition by remember { mutableFloatStateOf(position) }
+    var internalSeekPosition by remember { mutableFloatStateOf(playerPosition) }
+    val position = seekBarDisplayPosition(
+        playerPosition = playerPosition,
+        gestureSeekPosition = seekPosition,
+        internalSeekPosition = internalSeekPosition,
+        isGestureSeeking = isGestureSeeking,
+        isSeeking = isSeeking,
+    )
     var remoteSeekInProgress by remember { mutableStateOf(false) }
     LaunchedEffect(position, isSeeking) {
-        if (!isSeeking) remoteSeekPosition = position
+        if (!isSeeking) internalSeekPosition = position
     }
     val clickEvent = LocalPlayerButtonsClickEvent.current
     Row(
@@ -120,11 +139,11 @@ fun SeekbarWithTimers(
             value = position.coerceIn(0f, duration),
             range = 0f..duration,
             onValueChange = {
-                remoteSeekPosition = it
+                internalSeekPosition = it
                 onValueChange(it)
             },
             onValueChangeFinished = {
-                onValueChangeFinished(remoteSeekPosition)
+                onValueChangeFinished(internalSeekPosition)
             },
             readAheadValue = readAheadValue,
             segments = chapters
@@ -135,7 +154,8 @@ fun SeekbarWithTimers(
                         persistentListOf(Segment("", 0f)) + it
                     } else {
                         it
-                    } + it
+                    } +
+                        it
                 },
             modifier = Modifier
                 .weight(1f)
@@ -160,7 +180,7 @@ fun SeekbarWithTimers(
                         if (nativeEvent.action == android.view.KeyEvent.ACTION_DOWN) {
                             clickEvent()
                             if (remoteSeekInProgress) {
-                                onValueChangeFinished(remoteSeekPosition)
+                                onValueChangeFinished(internalSeekPosition)
                                 remoteSeekInProgress = false
                             }
                             escapeFocusRequester.requestFocus()
@@ -172,13 +192,13 @@ fun SeekbarWithTimers(
                     when (nativeEvent.action) {
                         android.view.KeyEvent.ACTION_DOWN -> {
                             remoteSeekInProgress = true
-                            remoteSeekPosition = (remoteSeekPosition + step).coerceIn(0f, duration)
-                            onValueChange(remoteSeekPosition)
+                            internalSeekPosition = (internalSeekPosition + step).coerceIn(0f, duration)
+                            onValueChange(internalSeekPosition)
                             true
                         }
                         android.view.KeyEvent.ACTION_UP -> {
                             if (shouldFinishTvSeek(nativeEvent.keyCode, remoteSeekInProgress)) {
-                                onValueChangeFinished(remoteSeekPosition)
+                                onValueChangeFinished(internalSeekPosition)
                             }
                             remoteSeekInProgress = false
                             true
@@ -259,6 +279,7 @@ private fun PreviewSeekBar() {
     SeekbarWithTimers(
         5f,
         5f,
+        false,
         false,
         20f,
         4f,

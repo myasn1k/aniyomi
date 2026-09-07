@@ -406,6 +406,7 @@ fun PlayerControls(
                     SeekbarWithTimers(
                         playerPosition = position,
                         seekPosition = seekPosition,
+                        isGestureSeeking = gestureSeekAmount != null,
                         isSeeking = isSeeking,
                         duration = duration,
                         readAheadValue = readAhead,
