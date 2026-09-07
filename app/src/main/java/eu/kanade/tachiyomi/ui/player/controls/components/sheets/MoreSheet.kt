@@ -219,7 +219,7 @@ fun MoreSheet(
 
                         Box {
                             FilterChip(
-                                onClick = {},
+                                onClick = { button.execute() },
                                 label = { Text(text = button.name) },
                                 selected = false,
                                 interactionSource = inputChipInteractionSource,

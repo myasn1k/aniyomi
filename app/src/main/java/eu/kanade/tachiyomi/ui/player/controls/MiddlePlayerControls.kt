@@ -40,10 +40,12 @@ import `is`.xyz.mpv.Utils
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 import kotlin.math.abs
 
 @Composable
 fun MiddlePlayerControls(
+    playPauseFocusRequester: FocusRequester,
     // previous
     hasPrevious: Boolean,
     onSkipPrevious: () -> Unit,
@@ -66,12 +68,6 @@ fun MiddlePlayerControls(
     exit: ExitTransition,
     modifier: Modifier = Modifier,
 ) {
-    val playPauseFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(controlsShown, areControlsLocked, isLoading, isLoadingEpisode) {
-        if (controlsShown && !areControlsLocked && !isLoading && !isLoadingEpisode) {
-            playPauseFocusRequester.requestFocus()
-        }
-    }
     Row(
         modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -118,11 +114,19 @@ fun MiddlePlayerControls(
                     enter = enter,
                     exit = exit,
                 ) {
+                    // Request only while the actual focus target is composed.
+                    // Loading and seek feedback replace this entire branch.
+                    LaunchedEffect(controlsShown, areControlsLocked, isLoading, isLoadingEpisode) {
+                        if (controlsShown && !areControlsLocked && !isLoading && !isLoadingEpisode) {
+                            playPauseFocusRequester.requestFocus()
+                        }
+                    }
                     Image(
                         painter = rememberAnimatedVectorPainter(icon, !paused),
                         modifier = Modifier
                             .size(96.dp)
                             .focusRequester(playPauseFocusRequester)
+                            .focusHighlight()
                             .clip(CircleShape)
                             .clickable(
                                 interaction,

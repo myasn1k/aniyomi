@@ -16,7 +16,15 @@ internal enum class TvRemoteAction {
 }
 
 /** Maps remote buttons only when the player itself should consume them. */
-internal fun tvRemoteAction(keyCode: Int, controlsShown: Boolean): TvRemoteAction? {
+internal fun tvRemoteAction(
+    keyCode: Int,
+    controlsShown: Boolean,
+    modalOverlayShown: Boolean = false,
+): TvRemoteAction? {
+    // Sheets, panels, and dialogs own navigation while they are visible. In particular, their
+    // BackHandlers must receive Back and their focus trees must receive every D-pad direction.
+    if (modalOverlayShown && isTvNavigationKey(keyCode)) return null
+
     return when (keyCode) {
         KeyEvent.KEYCODE_DPAD_CENTER,
         KeyEvent.KEYCODE_ENTER,
@@ -57,4 +65,17 @@ internal fun tvRemoteAction(keyCode: Int, controlsShown: Boolean): TvRemoteActio
 /** Prevents Android or MPV from acting on the key-up after the TV key-down was handled. */
 internal fun shouldConsumeTvKeyUp(consumedKeyDown: Int?, keyUp: Int): Boolean {
     return consumedKeyDown == keyUp
+}
+
+/** Navigation belongs to the focused TV UI and must never fall through to MPV bindings. */
+internal fun isTvNavigationKey(keyCode: Int): Boolean {
+    return keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+        keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+        keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+        keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+        keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+        keyCode == KeyEvent.KEYCODE_ENTER ||
+        keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER ||
+        keyCode == KeyEvent.KEYCODE_MENU ||
+        keyCode == KeyEvent.KEYCODE_BACK
 }

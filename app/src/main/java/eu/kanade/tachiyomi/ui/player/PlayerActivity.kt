@@ -268,6 +268,7 @@ class PlayerActivity : BaseActivity() {
             TachiyomiTheme {
                 PlayerControls(
                     viewModel = viewModel,
+                    isTelevision = isTelevision(),
                     onBackPress = {
                         if (isPipSupportedAndEnabled && player.paused == false && playerPreferences.pipOnExit().get()) {
                             enterPictureInPictureMode(createPipParams())
@@ -858,7 +859,14 @@ class PlayerActivity : BaseActivity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         if (isTelevision()) {
-            val action = tvRemoteAction(keyCode, viewModel.controlsShown.value)
+            val modalOverlayShown = viewModel.sheetShown.value != Sheets.None ||
+                viewModel.panelShown.value != Panels.None ||
+                viewModel.dialogShown.value != Dialogs.None
+            val action = tvRemoteAction(
+                keyCode = keyCode,
+                controlsShown = viewModel.controlsShown.value,
+                modalOverlayShown = modalOverlayShown,
+            )
             if (action != null) {
                 consumedTvKeyDown = keyCode
                 when (action) {
@@ -884,6 +892,7 @@ class PlayerActivity : BaseActivity() {
                 }
                 return true
             }
+            if (isTvNavigationKey(keyCode)) return super.onKeyDown(keyCode, event)
         }
         when (keyCode) {
             KeyEvent.KEYCODE_VOLUME_UP -> {
@@ -915,6 +924,9 @@ class PlayerActivity : BaseActivity() {
         if (shouldConsumeTvKeyUp(consumedTvKeyDown, keyCode)) {
             consumedTvKeyDown = null
             return true
+        }
+        if (isTelevision() && isTvNavigationKey(keyCode)) {
+            return super.onKeyUp(keyCode, event)
         }
         if (player.onKey(event!!)) return true
         return super.onKeyUp(keyCode, event)

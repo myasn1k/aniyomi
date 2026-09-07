@@ -1,5 +1,7 @@
 package eu.kanade.tachiyomi.ui.player.controls
 
+import android.view.KeyEvent
+import eu.kanade.tachiyomi.ui.player.Sheets
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -37,5 +39,30 @@ class PlayerControlsTest {
                 isSeeking = true,
             ),
         )
+    }
+
+    @Test
+    fun `controls remain visible while a submenu is open`() {
+        assertFalse(
+            shouldAutoHidePlayerControls(
+                controlsShown = true,
+                paused = false,
+                isSeeking = false,
+                sheetShown = Sheets.More,
+            ),
+        )
+    }
+
+    @Test
+    fun `TV remote key down restarts the auto hide countdown`() {
+        assertTrue(shouldResetTvControlsAutoHide(isTelevision = true, keyAction = KeyEvent.ACTION_DOWN))
+        assertFalse(shouldResetTvControlsAutoHide(isTelevision = true, keyAction = KeyEvent.ACTION_UP))
+        assertFalse(shouldResetTvControlsAutoHide(isTelevision = false, keyAction = KeyEvent.ACTION_DOWN))
+    }
+
+    @Test
+    fun `aspect control is kept on phones and hidden on TVs`() {
+        assertFalse(shouldShowAspectControl(isTelevision = true))
+        assertTrue(shouldShowAspectControl(isTelevision = false))
     }
 }

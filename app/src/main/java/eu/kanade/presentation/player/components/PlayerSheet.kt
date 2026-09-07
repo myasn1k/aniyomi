@@ -24,11 +24,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -53,18 +55,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -82,6 +91,9 @@ fun PlayerSheet(
     content: @Composable () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val sheetFocusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val isTelevision = LocalContext.current.isTelevision()
     val density = LocalDensity.current
     val latestOnDismissRequest by rememberUpdatedState(onDismissRequest)
     val maxWidth = if (LocalConfiguration.current.orientation == ORIENTATION_LANDSCAPE) {
@@ -146,16 +158,9 @@ fun PlayerSheet(
         Surface(
             modifier = Modifier
                 .sizeIn(maxWidth = maxWidth, maxHeight = maxHeight)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                )
-                .nestedScroll(
-                    remember(anchoredDraggableState) {
-                        anchoredDraggableState.preUpPostDownNestedScrollConnection()
-                    },
-                )
+                .focusRequester(sheetFocusRequester)
+                .focusGroup()
+                .pointerInput(Unit) { detectTapGestures(onTap = {}) }
                 .then(modifier)
                 .offset {
                     IntOffset(
@@ -166,9 +171,21 @@ fun PlayerSheet(
                             ?: 0,
                     )
                 }
-                .anchoredDraggable(
-                    state = anchoredDraggableState,
-                    orientation = Orientation.Vertical,
+                .then(
+                    if (isTelevision) {
+                        Modifier
+                    } else {
+                        Modifier
+                            .nestedScroll(
+                                remember(anchoredDraggableState) {
+                                    anchoredDraggableState.preUpPostDownNestedScrollConnection()
+                                },
+                            )
+                            .anchoredDraggable(
+                                state = anchoredDraggableState,
+                                orientation = Orientation.Vertical,
+                            )
+                    },
                 )
                 .windowInsetsPadding(
                     WindowInsets.systemBars
@@ -187,6 +204,8 @@ fun PlayerSheet(
 
         LaunchedEffect(true) {
             backgroundAlpha = 0.5f
+            sheetFocusRequester.requestFocus()
+            focusManager.moveFocus(FocusDirection.Next)
         }
 
         LaunchedEffect(anchoredDraggableState) {

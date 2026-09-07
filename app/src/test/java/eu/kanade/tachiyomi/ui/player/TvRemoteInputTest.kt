@@ -34,6 +34,40 @@ class TvRemoteInputTest {
     }
 
     @Test
+    fun `modal player overlays own all navigation keys`() {
+        val navigationKeys = listOf(
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER,
+            KeyEvent.KEYCODE_BACK,
+        )
+
+        navigationKeys.forEach { keyCode ->
+            assertNull(
+                tvRemoteAction(
+                    keyCode = keyCode,
+                    controlsShown = false,
+                    modalOverlayShown = true,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `media keys still work while a modal player overlay is visible`() {
+        assertEquals(
+            TvRemoteAction.TogglePlayback,
+            tvRemoteAction(
+                keyCode = KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                controlsShown = false,
+                modalOverlayShown = true,
+            ),
+        )
+    }
+
+    @Test
     fun `directional keys seek only while controls are hidden`() {
         assertEquals(
             TvRemoteAction.SeekBackward,
@@ -79,5 +113,14 @@ class TvRemoteInputTest {
         assertNull(tvRemoteAction(KeyEvent.KEYCODE_MENU, true))
         assertEquals(TvRemoteAction.PreviousEpisode, tvRemoteAction(KeyEvent.KEYCODE_CHANNEL_UP, false))
         assertEquals(TvRemoteAction.NextEpisode, tvRemoteAction(KeyEvent.KEYCODE_CHANNEL_DOWN, false))
+    }
+
+    @Test
+    fun `TV navigation keys never fall through to MPV`() {
+        assertTrue(isTvNavigationKey(KeyEvent.KEYCODE_DPAD_LEFT))
+        assertTrue(isTvNavigationKey(KeyEvent.KEYCODE_DPAD_CENTER))
+        assertTrue(isTvNavigationKey(KeyEvent.KEYCODE_BACK))
+        assertFalse(isTvNavigationKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE))
+        assertFalse(isTvNavigationKey(KeyEvent.KEYCODE_VOLUME_UP))
     }
 }

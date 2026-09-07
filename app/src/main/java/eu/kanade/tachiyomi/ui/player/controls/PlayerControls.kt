@@ -49,8 +49,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
@@ -95,6 +97,7 @@ val LocalPlayerButtonsClickEvent = staticCompositionLocalOf { {} }
 fun PlayerControls(
     viewModel: PlayerViewModel,
     onBackPress: () -> Unit,
+    isTelevision: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.padding
@@ -103,7 +106,7 @@ fun PlayerControls(
     val audioPreferences = remember { Injekt.get<AudioPreferences>() }
     val subtitlePreferences = remember { Injekt.get<SubtitlePreferences>() }
     val interactionSource = remember { MutableInteractionSource() }
-
+    val playPauseFocusRequester = remember { FocusRequester() }
     val controlsShown by viewModel.controlsShown.collectAsState()
     val areControlsLocked by viewModel.areControlsLocked.collectAsState()
     val seekBarShown by viewModel.seekBarShown.collectAsState()
@@ -114,6 +117,9 @@ fun PlayerControls(
     val seekPosition by viewModel.seekPosition.collectAsState()
     val isSeeking by viewModel.isSeeking.collectAsState()
     val paused by viewModel.paused.collectAsState()
+    val sheetShown by viewModel.sheetShown.collectAsState()
+    val panelShown by viewModel.panelShown.collectAsState()
+    val dialogShown by viewModel.dialogShown.collectAsState()
     val gestureSeekAmount by viewModel.gestureSeekAmount.collectAsState()
     val doubleTapSeekAmount by viewModel.doubleTapSeekAmount.collectAsState()
     val seekText by viewModel.seekText.collectAsState()
@@ -135,9 +141,12 @@ fun PlayerControls(
         controlsShown,
         paused,
         isSeeking,
+        sheetShown,
+        panelShown,
+        dialogShown,
         resetControls,
     ) {
-        if (shouldAutoHidePlayerControls(controlsShown, paused, isSeeking)) {
+        if (shouldAutoHidePlayerControls(controlsShown, paused, isSeeking, sheetShown, panelShown, dialogShown)) {
             delay(playerTimeToDisappear.toLong())
             viewModel.hideControls()
         }
@@ -164,6 +173,12 @@ fun PlayerControls(
             ConstraintLayout(
                 modifier = modifier
                     .fillMaxSize()
+                    .onPreviewKeyEvent { event ->
+                        if (shouldResetTvControlsAutoHide(isTelevision, event.nativeKeyEvent.action)) {
+                            resetControls = !resetControls
+                        }
+                        false
+                    }
                     .background(
                         Brush.verticalGradient(
                             Pair(0f, Color.Black),
@@ -349,6 +364,7 @@ fun PlayerControls(
                 ) {
                     val showLoadingCircle by playerPreferences.showLoadingCircle().collectAsState()
                     MiddlePlayerControls(
+                        playPauseFocusRequester = playPauseFocusRequester,
                         hasPrevious = hasPreviousEpisode,
                         onSkipPrevious = { viewModel.changeEpisode(true) },
                         hasNext = hasNextEpisode,
@@ -397,10 +413,10 @@ fun PlayerControls(
                             viewModel.updateSeekPos(it)
                             viewModel.updateIsSeeking(true)
                         },
-                        onValueChangeFinished = {
-                            viewModel.updatePlayBackPos(seekPosition)
+                        onValueChangeFinished = { finalPosition ->
+                            viewModel.updatePlayBackPos(finalPosition)
                             viewModel.updateIsSeeking(false)
-                            viewModel.seekTo(seekPosition.toInt(), preciseSeeking)
+                            viewModel.seekTo(finalPosition.toInt(), preciseSeeking)
                         },
                         timersInverted = Pair(false, invertDuration),
                         durationTimerOnCLick = { playerPreferences.invertDuration().set(!invertDuration) },
@@ -502,7 +518,8 @@ fun PlayerControls(
                         customButtonTitle = customButtonTitle,
                         skipIntroButton = skipIntroButton,
                         onPressSkipIntroButton = viewModel::onSkipIntro,
-                        isPipAvailable = activity.isPipSupportedAndEnabled,
+                        isPipAvailable = !isTelevision && activity.isPipSupportedAndEnabled,
+                        showAspectControl = shouldShowAspectControl(isTelevision),
                         onPipClick = {
                             if (!viewModel.isLoadingEpisode.value) {
                                 activity.enterPictureInPictureMode(activity.createPipParams())
@@ -543,7 +560,8 @@ fun PlayerControls(
                     },
                 ) {
                     BottomLeftPlayerControls(
-                        playbackSpeed,
+                        showMobileControls = !isTelevision,
+                        playbackSpeed = playbackSpeed,
                         currentChapter = currentChapter?.toSegment(),
                         onLockControls = viewModel::lockControls,
                         onCycleRotation = viewModel::cycleScreenRotations,
@@ -568,7 +586,6 @@ fun PlayerControls(
             }
         }
 
-        val sheetShown by viewModel.sheetShown.collectAsState()
         val dismissSheet by viewModel.dismissSheet.collectAsState()
         val subtitles by viewModel.subtitleTracks.collectAsState()
         val selectedSubtitles by viewModel.selectedSubtitles.collectAsState()
@@ -637,19 +654,17 @@ fun PlayerControls(
             onDismissRequest = { viewModel.showSheet(Sheets.None) },
             dismissSheet = dismissSheet,
         )
-        val panel by viewModel.panelShown.collectAsState()
         PlayerPanels(
-            panelShown = panel,
+            panelShown = panelShown,
             onDismissRequest = { viewModel.showPanel(Panels.None) },
         )
 
         val activity = LocalContext.current as PlayerActivity
-        val dialog by viewModel.dialogShown.collectAsState()
         val anime by viewModel.currentAnime.collectAsState()
         val playlist by viewModel.currentPlaylist.collectAsState()
 
         PlayerDialogs(
-            dialogShown = dialog,
+            dialogShown = dialogShown,
             episodeDisplayMode = anime?.displayMode,
             episodeList = playlist,
             currentEpisodeIndex = viewModel.getCurrentEpisodeIndex(),
@@ -674,7 +689,19 @@ internal fun shouldAutoHidePlayerControls(
     controlsShown: Boolean,
     paused: Boolean,
     isSeeking: Boolean,
-): Boolean = controlsShown && !paused && !isSeeking
+    sheetShown: Sheets = Sheets.None,
+    panelShown: Panels = Panels.None,
+    dialogShown: Dialogs = Dialogs.None,
+): Boolean = controlsShown &&
+    !paused &&
+    !isSeeking &&
+    sheetShown == Sheets.None &&
+    panelShown == Panels.None &&
+    dialogShown == Dialogs.None
+
+internal fun shouldResetTvControlsAutoHide(isTelevision: Boolean, keyAction: Int): Boolean {
+    return isTelevision && keyAction == android.view.KeyEvent.ACTION_DOWN
+}
 
 fun <T> playerControlsExitAnimationSpec(): FiniteAnimationSpec<T> = tween(
     durationMillis = 300,

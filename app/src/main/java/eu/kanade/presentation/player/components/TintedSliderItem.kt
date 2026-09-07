@@ -17,6 +17,7 @@
 
 package eu.kanade.presentation.player.components
 
+import android.view.KeyEvent
 import androidx.annotation.IntRange
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -33,9 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.util.focusHighlight
 import kotlin.math.max
 import kotlin.math.min
 
@@ -52,6 +57,7 @@ fun TintedSliderItem(
     icon: @Composable () -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
+    val isTelevision = LocalContext.current.isTelevision()
 
     Row(
         modifier = modifier
@@ -81,7 +87,19 @@ fun TintedSliderItem(
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
             },
-            modifier = Modifier.weight(1.5f),
+            modifier = Modifier
+                .weight(1.5f)
+                .focusHighlight()
+                .onPreviewKeyEvent { event ->
+                    if (!isTelevision) return@onPreviewKeyEvent false
+                    val direction = tvSliderDirection(event.nativeKeyEvent.keyCode)
+                        ?: return@onPreviewKeyEvent false
+                    if (event.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        onChange((value + direction).coerceIn(min, max))
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    true
+                },
             valueRange = min.toFloat()..max.toFloat(),
             steps = max - min,
             tint = tint,
