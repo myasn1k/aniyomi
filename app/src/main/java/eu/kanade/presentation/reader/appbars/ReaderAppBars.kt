@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,20 +18,27 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import eu.kanade.presentation.components.AppBar
 import eu.kanade.presentation.components.AppBarActions
+import eu.kanade.presentation.components.AppBarTitle
 import eu.kanade.presentation.reader.components.ChapterNavigator
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
 import eu.kanade.tachiyomi.ui.reader.viewer.Viewer
 import eu.kanade.tachiyomi.ui.reader.viewer.pager.R2LPagerViewer
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 
 private val animationSpec = tween<IntOffset>(200)
 
@@ -66,6 +74,8 @@ fun ReaderAppBars(
     onClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
 ) {
+    val menuFocusRequester = remember { FocusRequester() }
+    val isTelevision = LocalContext.current.isTelevision()
     val isRtl = viewer is R2LPagerViewer
     val backgroundColor = MaterialTheme.colorScheme
         .surfaceColorAtElevation(3.dp)
@@ -78,7 +88,8 @@ fun ReaderAppBars(
     }
 
     Column(
-        modifier = Modifier.fillMaxHeight(),
+        modifier = Modifier
+            .fillMaxHeight(),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         AnimatedVisibility(
@@ -94,13 +105,29 @@ fun ReaderAppBars(
         ) {
             AppBar(
                 modifier = modifierWithInsetsPadding
-                    .clickable(onClick = onClickTopAppBar),
+                    .then(
+                        if (isTelevision) {
+                            Modifier.focusGroup()
+                        } else {
+                            Modifier.clickable(onClick = onClickTopAppBar)
+                        },
+                    ),
                 backgroundColor = backgroundColor,
-                title = mangaTitle,
-                subtitle = chapterTitle,
+                titleContent = {
+                    AppBarTitle(
+                        title = mangaTitle,
+                        subtitle = chapterTitle,
+                        modifier = if (isTelevision) {
+                            Modifier.focusHighlight().clickable(onClick = onClickTopAppBar)
+                        } else {
+                            Modifier
+                        },
+                    )
+                },
                 navigateUp = navigateUp,
                 actions = {
                     AppBarActions(
+                        actionModifier = if (isTelevision) Modifier.focusHighlight() else Modifier,
                         actions = persistentListOf<AppBar.AppBarAction>().builder()
                             .apply {
                                 add(
@@ -164,6 +191,12 @@ fun ReaderAppBars(
                 animationSpec = animationSpec,
             ),
         ) {
+            // The target exists only while this animated menu content is mounted.
+            LaunchedEffect(visible, isTelevision) {
+                if (visible && isTelevision) {
+                    menuFocusRequester.requestFocus()
+                }
+            }
             Column(
                 modifier = modifierWithInsetsPadding,
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
@@ -187,6 +220,7 @@ fun ReaderAppBars(
                     cropEnabled = cropEnabled,
                     onClickCropBorder = onClickCropBorder,
                     onClickSettings = onClickSettings,
+                    initialFocusRequester = menuFocusRequester,
                 )
             }
         }

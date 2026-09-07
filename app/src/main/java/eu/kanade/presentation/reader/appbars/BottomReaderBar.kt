@@ -12,14 +12,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import eu.kanade.tachiyomi.util.system.isTelevision
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.focusHighlight
 
 @Composable
 fun BottomReaderBar(
@@ -31,7 +36,9 @@ fun BottomReaderBar(
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
+    initialFocusRequester: FocusRequester? = null,
 ) {
+    val isTelevision = LocalContext.current.isTelevision()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -40,28 +47,39 @@ fun BottomReaderBar(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onClickReadingMode) {
+        IconButton(
+            onClick = onClickReadingMode,
+            modifier = (
+                if (initialFocusRequester != null) {
+                    Modifier.focusRequester(initialFocusRequester)
+                } else {
+                    Modifier
+                }
+                ).focusHighlight(),
+        ) {
             Icon(
                 painter = painterResource(readingMode.iconRes),
                 contentDescription = stringResource(MR.strings.viewer),
             )
         }
 
-        IconButton(onClick = onClickOrientation) {
-            Icon(
-                imageVector = orientation.icon,
-                contentDescription = stringResource(MR.strings.rotation_type),
-            )
+        if (!isTelevision) {
+            IconButton(onClick = onClickOrientation) {
+                Icon(
+                    imageVector = orientation.icon,
+                    contentDescription = stringResource(MR.strings.rotation_type),
+                )
+            }
         }
 
-        IconButton(onClick = onClickCropBorder) {
+        IconButton(onClick = onClickCropBorder, modifier = Modifier.focusHighlight()) {
             Icon(
                 painter = painterResource(if (cropEnabled) R.drawable.ic_crop_24dp else R.drawable.ic_crop_off_24dp),
                 contentDescription = stringResource(MR.strings.pref_crop_borders),
             )
         }
 
-        IconButton(onClick = onClickSettings) {
+        IconButton(onClick = onClickSettings, modifier = Modifier.focusHighlight()) {
             Icon(
                 imageVector = Icons.Outlined.Settings,
                 contentDescription = stringResource(MR.strings.action_settings),

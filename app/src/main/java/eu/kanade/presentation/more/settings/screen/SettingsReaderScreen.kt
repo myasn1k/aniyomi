@@ -5,14 +5,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import eu.kanade.presentation.more.settings.Preference
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderPreferences
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode
+import eu.kanade.tachiyomi.util.system.isTelevision
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.collections.immutable.toPersistentList
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 import tachiyomi.presentation.core.i18n.pluralStringResource
@@ -30,9 +33,10 @@ object SettingsReaderScreen : SearchableSettings {
 
     @Composable
     override fun getPreferences(): List<Preference> {
+        val isTelevision = LocalContext.current.isTelevision()
         val readerPref = remember { Injekt.get<ReaderPreferences>() }
 
-        return listOf(
+        return listOfNotNull(
             Preference.PreferenceItem.ListPreference(
                 preference = readerPref.defaultReadingMode(),
                 entries = ReadingMode.entries.drop(1)
@@ -40,53 +44,72 @@ object SettingsReaderScreen : SearchableSettings {
                     .toImmutableMap(),
                 title = stringResource(MR.strings.pref_viewer_type),
             ),
-            Preference.PreferenceItem.ListPreference(
-                preference = readerPref.doubleTapAnimSpeed(),
-                entries = persistentMapOf(
-                    1 to stringResource(MR.strings.double_tap_anim_speed_0),
-                    500 to stringResource(MR.strings.double_tap_anim_speed_normal),
-                    250 to stringResource(MR.strings.double_tap_anim_speed_fast),
-                ),
-                title = stringResource(MR.strings.pref_double_tap_anim_speed),
-            ),
+            if (!isTelevision) {
+                Preference.PreferenceItem.ListPreference(
+                    preference = readerPref.doubleTapAnimSpeed(),
+                    entries = persistentMapOf(
+                        1 to stringResource(MR.strings.double_tap_anim_speed_0),
+                        500 to stringResource(MR.strings.double_tap_anim_speed_normal),
+                        250 to stringResource(MR.strings.double_tap_anim_speed_fast),
+                    ),
+                    title = stringResource(MR.strings.pref_double_tap_anim_speed),
+                )
+            } else {
+                null
+            },
             Preference.PreferenceItem.SwitchPreference(
                 preference = readerPref.showReadingMode(),
                 title = stringResource(MR.strings.pref_show_reading_mode),
                 subtitle = stringResource(MR.strings.pref_show_reading_mode_summary),
             ),
-            Preference.PreferenceItem.SwitchPreference(
-                preference = readerPref.showNavigationOverlayOnStart(),
-                title = stringResource(MR.strings.pref_show_navigation_mode),
-                subtitle = stringResource(MR.strings.pref_show_navigation_mode_summary),
-            ),
+            if (!isTelevision) {
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = readerPref.showNavigationOverlayOnStart(),
+                    title = stringResource(MR.strings.pref_show_navigation_mode),
+                    subtitle = stringResource(MR.strings.pref_show_navigation_mode_summary),
+                )
+            } else {
+                null
+            },
             Preference.PreferenceItem.SwitchPreference(
                 preference = readerPref.pageTransitions(),
                 title = stringResource(MR.strings.pref_page_transitions),
             ),
-            getDisplayGroup(readerPreferences = readerPref),
-            getEInkGroup(readerPreferences = readerPref),
+            getDisplayGroup(readerPreferences = readerPref, isTelevision = isTelevision),
+            if (shouldShowEInkSettings(isTelevision)) getEInkGroup(readerPreferences = readerPref) else null,
             getReadingGroup(readerPreferences = readerPref),
-            getPagedGroup(readerPreferences = readerPref),
-            getWebtoonGroup(readerPreferences = readerPref),
-            getNavigationGroup(readerPreferences = readerPref),
-            getActionsGroup(readerPreferences = readerPref),
+            getPagedGroup(readerPreferences = readerPref, isTelevision = isTelevision),
+            getWebtoonGroup(readerPreferences = readerPref, isTelevision = isTelevision),
+            if (shouldShowVolumeKeySettings(isTelevision)) {
+                getNavigationGroup(readerPreferences = readerPref)
+            } else {
+                null
+            },
+            getActionsGroup(readerPreferences = readerPref, isTelevision = isTelevision),
         )
     }
 
     @Composable
-    private fun getDisplayGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+    private fun getDisplayGroup(
+        readerPreferences: ReaderPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         val fullscreenPref = readerPreferences.fullscreen()
         val fullscreen by fullscreenPref.collectAsState()
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_category_display),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.defaultOrientationType(),
-                    entries = ReaderOrientation.entries.drop(1)
-                        .associate { it.flagValue to stringResource(it.stringRes) }
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_rotation_type),
-                ),
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.defaultOrientationType(),
+                        entries = ReaderOrientation.entries.drop(1)
+                            .associate { it.flagValue to stringResource(it.stringRes) }
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_rotation_type),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.ListPreference(
                     preference = readerPreferences.readerTheme(),
                     entries = persistentMapOf(
@@ -97,17 +120,25 @@ object SettingsReaderScreen : SearchableSettings {
                     ),
                     title = stringResource(MR.strings.pref_reader_theme),
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = fullscreenPref,
-                    title = stringResource(MR.strings.pref_fullscreen),
-                ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.cutoutShort(),
-                    title = stringResource(MR.strings.pref_cutout_short),
-                    enabled = fullscreen &&
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-                        LocalView.current.rootWindowInsets?.displayCutout != null, // has cutout
-                ),
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = fullscreenPref,
+                        title = stringResource(MR.strings.pref_fullscreen),
+                    )
+                } else {
+                    null
+                },
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.cutoutShort(),
+                        title = stringResource(MR.strings.pref_cutout_short),
+                        enabled = fullscreen &&
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
+                            LocalView.current.rootWindowInsets?.displayCutout != null, // has cutout
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = readerPreferences.keepScreenOn(),
                     title = stringResource(MR.strings.pref_keep_screen_on),
@@ -116,7 +147,7 @@ object SettingsReaderScreen : SearchableSettings {
                     preference = readerPreferences.showPageNumber(),
                     title = stringResource(MR.strings.pref_show_page_number),
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 
@@ -207,7 +238,10 @@ object SettingsReaderScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getPagedGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+    private fun getPagedGroup(
+        readerPreferences: ReaderPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         val navModePref = readerPreferences.navigationModePager()
         val imageScaleTypePref = readerPreferences.imageScaleType()
         val dualPageSplitPref = readerPreferences.dualPageSplitPaged()
@@ -220,28 +254,36 @@ object SettingsReaderScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pager_viewer),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = navModePref,
-                    entries = ReaderPreferences.TapZones
-                        .mapIndexed { index, it -> index to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_viewer_nav),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.pagerNavInverted(),
-                    entries = persistentListOf(
-                        ReaderPreferences.TappingInvertMode.NONE,
-                        ReaderPreferences.TappingInvertMode.HORIZONTAL,
-                        ReaderPreferences.TappingInvertMode.VERTICAL,
-                        ReaderPreferences.TappingInvertMode.BOTH,
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.ListPreference(
+                        preference = navModePref,
+                        entries = ReaderPreferences.TapZones
+                            .mapIndexed { index, it -> index to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_viewer_nav),
                     )
-                        .associateWith { stringResource(it.titleRes) }
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_read_with_tapping_inverted),
-                    enabled = navMode != 5,
-                ),
+                } else {
+                    null
+                },
+                if (!isTelevision) {
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.pagerNavInverted(),
+                        entries = persistentListOf(
+                            ReaderPreferences.TappingInvertMode.NONE,
+                            ReaderPreferences.TappingInvertMode.HORIZONTAL,
+                            ReaderPreferences.TappingInvertMode.VERTICAL,
+                            ReaderPreferences.TappingInvertMode.BOTH,
+                        )
+                            .associateWith { stringResource(it.titleRes) }
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_read_with_tapping_inverted),
+                        enabled = navMode != 5,
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.ListPreference(
                     preference = imageScaleTypePref,
                     entries = ReaderPreferences.ImageScaleType
@@ -299,12 +341,15 @@ object SettingsReaderScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_page_rotate_invert),
                     enabled = rotateToFit,
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 
     @Composable
-    private fun getWebtoonGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+    private fun getWebtoonGroup(
+        readerPreferences: ReaderPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         val numberFormat = remember { NumberFormat.getPercentInstance() }
 
         val navModePref = readerPreferences.navigationModeWebtoon()
@@ -319,28 +364,36 @@ object SettingsReaderScreen : SearchableSettings {
 
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.webtoon_viewer),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.ListPreference(
-                    preference = navModePref,
-                    entries = ReaderPreferences.TapZones
-                        .mapIndexed { index, it -> index to stringResource(it) }
-                        .toMap()
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_viewer_nav),
-                ),
-                Preference.PreferenceItem.ListPreference(
-                    preference = readerPreferences.webtoonNavInverted(),
-                    entries = persistentListOf(
-                        ReaderPreferences.TappingInvertMode.NONE,
-                        ReaderPreferences.TappingInvertMode.HORIZONTAL,
-                        ReaderPreferences.TappingInvertMode.VERTICAL,
-                        ReaderPreferences.TappingInvertMode.BOTH,
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.ListPreference(
+                        preference = navModePref,
+                        entries = ReaderPreferences.TapZones
+                            .mapIndexed { index, it -> index to stringResource(it) }
+                            .toMap()
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_viewer_nav),
                     )
-                        .associateWith { stringResource(it.titleRes) }
-                        .toImmutableMap(),
-                    title = stringResource(MR.strings.pref_read_with_tapping_inverted),
-                    enabled = navMode != 5,
-                ),
+                } else {
+                    null
+                },
+                if (!isTelevision) {
+                    Preference.PreferenceItem.ListPreference(
+                        preference = readerPreferences.webtoonNavInverted(),
+                        entries = persistentListOf(
+                            ReaderPreferences.TappingInvertMode.NONE,
+                            ReaderPreferences.TappingInvertMode.HORIZONTAL,
+                            ReaderPreferences.TappingInvertMode.VERTICAL,
+                            ReaderPreferences.TappingInvertMode.BOTH,
+                        )
+                            .associateWith { stringResource(it.titleRes) }
+                            .toImmutableMap(),
+                        title = stringResource(MR.strings.pref_read_with_tapping_inverted),
+                        enabled = navMode != 5,
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SliderPreference(
                     value = webtoonSidePadding,
                     valueRange = ReaderPreferences.let {
@@ -394,15 +447,19 @@ object SettingsReaderScreen : SearchableSettings {
                     title = stringResource(MR.strings.pref_page_rotate_invert),
                     enabled = rotateToFit,
                 ),
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.webtoonDoubleTapZoomEnabled(),
-                    title = stringResource(MR.strings.pref_double_tap_zoom),
-                ),
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.webtoonDoubleTapZoomEnabled(),
+                        title = stringResource(MR.strings.pref_double_tap_zoom),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = readerPreferences.webtoonDisableZoomOut(),
                     title = stringResource(MR.strings.pref_webtoon_disable_zoom_out),
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 
@@ -427,20 +484,31 @@ object SettingsReaderScreen : SearchableSettings {
     }
 
     @Composable
-    private fun getActionsGroup(readerPreferences: ReaderPreferences): Preference.PreferenceGroup {
+    private fun getActionsGroup(
+        readerPreferences: ReaderPreferences,
+        isTelevision: Boolean,
+    ): Preference.PreferenceGroup {
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_reader_actions),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = readerPreferences.readWithLongTap(),
-                    title = stringResource(MR.strings.pref_read_with_long_tap),
-                ),
+            preferenceItems = listOfNotNull(
+                if (!isTelevision) {
+                    Preference.PreferenceItem.SwitchPreference(
+                        preference = readerPreferences.readWithLongTap(),
+                        title = stringResource(MR.strings.pref_read_with_long_tap),
+                    )
+                } else {
+                    null
+                },
                 Preference.PreferenceItem.SwitchPreference(
                     preference = readerPreferences.folderPerManga(),
                     title = stringResource(MR.strings.pref_create_folder_per_manga),
                     subtitle = stringResource(MR.strings.pref_create_folder_per_manga_summary),
                 ),
-            ),
+            ).toPersistentList(),
         )
     }
 }
+
+internal fun shouldShowEInkSettings(isTelevision: Boolean): Boolean = !isTelevision
+
+internal fun shouldShowVolumeKeySettings(isTelevision: Boolean): Boolean = !isTelevision
