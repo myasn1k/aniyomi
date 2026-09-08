@@ -42,14 +42,16 @@ fun MangaExtensionReposContent(
     onClickDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isTv = isTvUi()
     LazyColumn(
         state = lazyListState,
-        contentPadding = paddingValues,
+        contentPadding = if (isTv) PaddingValues() else paddingValues,
         verticalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
-        modifier = modifier.focusGroup(),
+        // D-pad search must see the list below the toolbar, not overlapping its focus targets.
+        modifier = (if (isTv) modifier.padding(paddingValues) else modifier).focusGroup(),
     ) {
         repos.forEach {
-            item {
+            item(key = it.baseUrl) {
                 ExtensionRepoListItem(
                     modifier = Modifier.animateItem(),
                     repo = it,
@@ -71,7 +73,8 @@ private fun ExtensionRepoListItem(
     val context = LocalContext.current
 
     ElevatedCard(
-        modifier = modifier,
+        // Keep related actions together when moving between repository cards on TV.
+        modifier = if (isTvUi()) modifier.focusGroup() else modifier,
     ) {
         Row(
             modifier = Modifier
