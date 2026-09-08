@@ -1,11 +1,13 @@
 package tachiyomi.presentation.core.util
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,11 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -30,7 +30,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import tachiyomi.presentation.core.components.material.SECONDARY_ALPHA
 
-private val TvFocusBorderWidth = 6.dp
+private val TvFocusBorderWidth = 3.dp
+private val TvFocusBorderShape = RoundedCornerShape(8.dp)
 
 /**
  * Draws a visible focus indicator on Android TV, driven by the [interactionSource] that's
@@ -63,26 +64,11 @@ fun Modifier.focusHighlight(): Modifier = composed {
 
 @Composable
 private fun Modifier.tvFocusIndicator(isFocused: Boolean): Modifier {
-    val color = MaterialTheme.colorScheme.primary
-    return this
-        .drawWithContent {
-            if (isFocused) {
-                drawRoundRect(
-                    color.copy(alpha = 0.34f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
-                )
-            }
-            drawContent()
-            if (isFocused) {
-                drawRoundRect(
-                    color = Color.White,
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx()),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = TvFocusBorderWidth.toPx(),
-                    ),
-                )
-            }
-        }
+    return if (isFocused) {
+        border(TvFocusBorderWidth, MaterialTheme.colorScheme.primary, TvFocusBorderShape)
+    } else {
+        this
+    }
 }
 
 fun Modifier.selectedBackground(isSelected: Boolean): Modifier = if (isSelected) {

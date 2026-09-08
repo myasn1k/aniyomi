@@ -85,7 +85,7 @@ private val tvFocusRippleConfiguration
         color = MaterialTheme.colorScheme.onSurface,
         rippleAlpha = RippleAlpha(
             draggedAlpha = 0.18f,
-            focusedAlpha = 0.38f,
+            focusedAlpha = 0.10f,
             hoveredAlpha = 0.22f,
             pressedAlpha = 0.24f,
         ),
