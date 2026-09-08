@@ -13,6 +13,7 @@ import androidx.core.graphics.withTranslation
 import androidx.core.view.isVisible
 import eu.kanade.tachiyomi.ui.reader.viewer.ViewerNavigation
 import eu.kanade.tachiyomi.ui.reader.viewer.navigation.DisabledNavigation
+import eu.kanade.tachiyomi.util.system.isTvUiEnabled
 import tachiyomi.core.common.i18n.stringResource
 import kotlin.math.abs
 
@@ -30,7 +31,21 @@ class ReaderNavigationOverlayView(context: Context, attributeSet: AttributeSet) 
         this.navigation = navigation
         invalidate()
 
-        if (isVisible || (!showOnStart && firstLaunch) || navigation is DisabledNavigation) {
+        val tvUiEnabled = context.isTvUiEnabled()
+        if (tvUiEnabled) {
+            // This guide describes touch regions and is dismissed by touch, not by a remote.
+            viewPropertyAnimator?.cancel()
+            viewPropertyAnimator = null
+            isVisible = false
+        }
+
+        val showOverlay = shouldShowReaderNavigationOverlay(
+            tvUiEnabled = tvUiEnabled,
+            firstLaunch = firstLaunch,
+            showOnStart = showOnStart,
+            navigationEnabled = navigation !is DisabledNavigation,
+        )
+        if (isVisible || !showOverlay) {
             return
         }
 
@@ -112,5 +127,12 @@ class ReaderNavigationOverlayView(context: Context, attributeSet: AttributeSet) 
         return super.onTouchEvent(event)
     }
 }
+
+internal fun shouldShowReaderNavigationOverlay(
+    tvUiEnabled: Boolean,
+    firstLaunch: Boolean,
+    showOnStart: Boolean,
+    navigationEnabled: Boolean,
+): Boolean = !tvUiEnabled && navigationEnabled && (!firstLaunch || showOnStart)
 
 private const val FADE_DURATION = 1000L
